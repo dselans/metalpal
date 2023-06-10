@@ -1,9 +1,5 @@
 mod loudwire;
 
-use std::ops::{Sub};
-use chrono::Duration;
-use chrono::prelude::*;
-
 fn main() {
     // V1
     //
@@ -30,22 +26,18 @@ fn main() {
     //
     // All of the above, but don't spawn from main() - set it up as a forever
     // running service
+    let result = loudwire::get_config();
 
-    let date_start: DateTime<Local> = Local::now();
-    let date_end = date_start.sub(Duration::days(1));
-
-    let result = loudwire::get_releases(&date_start, &date_end);
-
-    let releases = match result {
-        Ok(releases) => releases,
+    let config = match result {
+        Ok(config) => config,
         Err(e) => { fatal_error(e) }
     };
 
-    for release in &releases {
+    for release in &config.releases {
         println!("Date: {} Artist: {} Album: {} Label: {}", release.date, release.artist, release.album, release.label);
     }
 
-    println!("Found {} releases", releases.len());
+    println!("Found {} releases; last updated: {}", config.releases.len(), config.last_update);
 
     // let mut releases_result = loudwire::get_releases(`$DATE`);
     // match releases_result {
