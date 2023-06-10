@@ -36,12 +36,16 @@ fn main() {
 
     let result = loudwire::get_releases(&date_start, &date_end);
 
-    let r = match result {
+    let releases = match result {
         Ok(releases) => releases,
         Err(e) => { fatal_error(e) }
     };
 
-    println!("Found {} releases", r.len());
+    for release in &releases {
+        println!("Date: {} Artist: {} Album: {} Label: {}", release.date, release.artist, release.album, release.label);
+    }
+
+    println!("Found {} releases", releases.len());
 
     // let mut releases_result = loudwire::get_releases(`$DATE`);
     // match releases_result {

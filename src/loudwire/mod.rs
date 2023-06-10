@@ -27,11 +27,17 @@ pub fn get_releases(date_start: &DateTime<Local>, date_end: &DateTime<Local>) ->
 
     let closer = Selector::parse("div.pod-content > p").unwrap();
 
+    let mut releases = Vec::new();
+
     for entry in fragment.select(&closer) {
         // let re = Regex::new(r"^<p>").map_err(|e| e.to_string())?;
         if entry.html().starts_with("<p><strong>") {
-            let mut releases = match parse_releases(entry.html()) {
-                Ok(releases) => releases,
+            match parse_releases(entry.html()) {
+                Ok(partial_releases) => {
+                    for release in partial_releases {
+                        releases.push(release);
+                    }
+                },
                 Err(e) => {
                     // Only explode on issues unrelated to date parsing
                     if e.contains("Could not parse date") {
@@ -41,17 +47,10 @@ pub fn get_releases(date_start: &DateTime<Local>, date_end: &DateTime<Local>) ->
                     }
                 }
             };
-
-            for release in releases {
-                println!("Date: {} Artist: {} Album: {} Label: {}", release.date, release.artist, release.album, release.label);
-            }
         }
     }
 
-    let releases = Vec::new();
-
     Ok(releases)
-    // Err(String::from("Something bad happened"))
 }
 
 fn parse_releases(html: String) -> Result<Vec<Release>, String> {
