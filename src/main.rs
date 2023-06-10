@@ -1,9 +1,9 @@
-mod loudwire;
+mod release;
 
 fn main() {
     // V1
     //
-    // 1. Check loudwire for today’s releases
+    // 1. Check release for today’s releases
     // 	1. For each release, try to get name of artist
     // 2. Check generated list against `reported` list
     // 	1. Each reported entry as `date:sha:name` in file/pickle
@@ -26,7 +26,7 @@ fn main() {
     //
     // All of the above, but don't spawn from main() - set it up as a forever
     // running service
-    let result = loudwire::get_config();
+    let result = release::get_config();
 
     let config = match result {
         Ok(config) => config,
@@ -39,7 +39,7 @@ fn main() {
 
     println!("Found {} releases; last updated: {}", config.releases.len(), config.last_update);
 
-    // let mut releases_result = loudwire::get_releases(`$DATE`);
+    // let mut releases_result = release::get_releases(`$DATE`);
     // match releases_result {
     //     Ok(releases) => {
     //         println!("Found {} releases", releases.len());

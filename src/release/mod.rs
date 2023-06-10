@@ -25,21 +25,21 @@ pub struct Release {
 // Wrapper for fetching latest releases for given date range
 //
 // First attempts to fetch data from local file; if that fails OR if it's too old
-// re-fetch data from loudwire.
+// re-fetch data from release.
 pub fn get_config() -> std::result::Result<MetalPalConfig, String> {
     let config_result = fetch_config_from_file();
 
     if let Ok(config) = config_result {
-        // We have found releases from file, return those instead of fetching from loudwire
+        // We have found releases from file, return those instead of fetching from release
         println!("Found config '{}'", CONFIG_FILE);
         return Ok(config);
     } else {
-        println!("Failed to find config file '{}'; fetching from loudwire...", CONFIG_FILE);
+        println!("Failed to find config file '{}'; fetching from release...", CONFIG_FILE);
     }
 
     // TODO: Check last_update
 
-    // File lookup failed, fetch releases from loudwire instead
+    // File lookup failed, fetch releases from release instead
     let releases = fetch_releases_from_loudwire()?;
     let config = MetalPalConfig {
         full_path: full_path().unwrap(),
@@ -86,7 +86,7 @@ fn write_releases_to_file(config: &MetalPalConfig) -> std::result::Result<(), St
     Ok(())
 }
 
-// Fetches latest releases from loudwire
+// Fetches latest releases from release
 fn fetch_releases_from_loudwire() -> std::result::Result<Vec<Release>, String> {
     let resp = reqwest::blocking::get(LOUDWIRE_URL).map_err(|e| e.to_string())?;
 
