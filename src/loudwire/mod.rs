@@ -30,10 +30,20 @@ pub fn get_releases(date_start: &DateTime<Local>, date_end: &DateTime<Local>) ->
     for entry in fragment.select(&closer) {
         // let re = Regex::new(r"^<p>").map_err(|e| e.to_string())?;
         if entry.html().starts_with("<p><strong>") {
-            let releases = parse_releases(entry.html())?;
+            let mut releases = match parse_releases(entry.html()) {
+                Ok(releases) => releases,
+                Err(e) => {
+                    // Only explode on issues unrelated to date parsing
+                    if e.contains("Could not parse date") {
+                        continue;
+                    } else {
+                        return Err(e);
+                    }
+                }
+            };
 
             for release in releases {
-                println!("{} - {} - {} (Label: {})", release.date, release.artist, release.album, release.label);
+                println!("Date: {} Artist: {} Album: {} Label: {}", release.date, release.artist, release.album, release.label);
             }
         }
     }
@@ -63,7 +73,7 @@ fn parse_releases(html: String) -> Result<Vec<Release>, String> {
 
     for s in split_releases {
         // If regex doesn't match, move on to next entry
-        let re = Regex::new(r"^(.+) - <em>(.+)</em>(.+)$").unwrap();
+        let re = Regex::new(r"^(.+) - <em>(.+)</em>(?:\s+)?\(?(.+)\)(?:</p>)?$").unwrap();
         let caps = match re.captures(s) {
             Some(caps) => caps,
             None => {
@@ -79,17 +89,19 @@ fn parse_releases(html: String) -> Result<Vec<Release>, String> {
 
         let artist = caps.get(1).map_or("", |m| m.as_str());
         let album = caps.get(2).map_or("", |m| m.as_str());
-        let label = caps.get(3).map_or("", |m| m.as_str());
+        let mut label = caps.get(3).map_or("", |m| m.as_str());
 
         let release = Release {
             date,
             artist: String::from(artist),
             album: String::from(album),
-            label: String::from(label),
+            label: label.replace("(", ""),
         };
 
         releases.push(release);
     }
+
+    releases.sort_by_key(|r| r.date);
 
     Ok(releases)
 }
