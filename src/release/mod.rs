@@ -1,93 +1,14 @@
-use chrono::prelude::{Utc, NaiveDate};
+mod spotify;
+
 use scraper::{Html, Selector};
 use regex::Regex;
-use std::fs;
-use serde::{Serialize, Deserialize};
+use crate::config::{Config, Release};
+use chrono::prelude::{Utc, NaiveDate, Local};
 
 const LOUDWIRE_URL: &str = "https://loudwire.com/2023-hard-rock-metal-album-release-calendar/";
-const CONFIG_FILE: &str = ".metalpal.json";
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct MetalPalConfig {
-    pub full_path: String,
-    pub last_update:chrono::DateTime<chrono::Utc>,
-    pub releases: Vec<Release>,
-}
-
-#[derive(Deserialize, Serialize, Debug)]
-pub struct Release {
-    pub date: NaiveDate,
-    pub artist: String,
-    pub album: String,
-    pub label: String,
-}
-
-// Wrapper for fetching latest releases for given date range
-//
-// First attempts to fetch data from local file; if that fails OR if it's too old
-// re-fetch data from release.
-pub fn get_config() -> std::result::Result<MetalPalConfig, String> {
-    let config_result = fetch_config_from_file();
-
-    if let Ok(config) = config_result {
-        // We have found releases from file, return those instead of fetching from release
-        println!("Found config '{}'", CONFIG_FILE);
-        return Ok(config);
-    } else {
-        println!("Failed to find config file '{}'; fetching from release...", CONFIG_FILE);
-    }
-
-    // TODO: Check last_update
-
-    // File lookup failed, fetch releases from release instead
-    let releases = fetch_releases_from_loudwire()?;
-    let config = MetalPalConfig {
-        full_path: full_path().unwrap(),
-        last_update: Utc::now(),
-        releases,
-    };
-
-    // Attempt to write releases to file
-    write_releases_to_file(&config)?;
-
-    Ok(config)
-}
-
-fn full_path() -> Result<String, String> {
-    let home_dir_opt = home::home_dir();
-    let home_dir = match home_dir_opt {
-        Some(home_dir) => home_dir.display().to_string(),
-        None => return Err(String::from("Failed to get home directory"))
-    };
-
-    Ok(home_dir.to_owned() + "/" + CONFIG_FILE)
-}
-
-fn fetch_config_from_file() -> std::result::Result<MetalPalConfig, String> {
-    // Try to get homedir
-    let full_path = full_path().unwrap();
-
-    // Try to lookup file
-    if !std::path::Path::new(&full_path).exists() {
-        return Err(format!("File {} does not exist", full_path));
-    }
-
-    // Try to read + parse
-    let contents = fs::read_to_string(full_path).map_err(|e| e.to_string())?;
-    let config : MetalPalConfig = serde_json::from_str(contents.as_str()).map_err(|e| e.to_string())?; // How to avoid this map_err boilerplate?
-
-    Ok(config)
-}
-
-fn write_releases_to_file(config: &MetalPalConfig) -> std::result::Result<(), String> {
-    let json_str = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
-    fs::write(&config.full_path, json_str).map_err(|e| e.to_string())?;
-
-    Ok(())
-}
 
 // Fetches latest releases from release
-fn fetch_releases_from_loudwire() -> std::result::Result<Vec<Release>, String> {
+pub fn fetch_releases() -> Result<Vec<Release>, String> {
     let resp = reqwest::blocking::get(LOUDWIRE_URL).map_err(|e| e.to_string())?;
 
     if resp.status() != reqwest::StatusCode::OK {
@@ -127,7 +48,7 @@ fn fetch_releases_from_loudwire() -> std::result::Result<Vec<Release>, String> {
     Ok(releases)
 }
 
-fn parse_releases(html: String) -> std::result::Result<Vec<Release>, String> {
+fn parse_releases(html: String) -> Result<Vec<Release>, String> {
     let mut releases = Vec::new();
 
     // Parse date
@@ -169,6 +90,8 @@ fn parse_releases(html: String) -> std::result::Result<Vec<Release>, String> {
             artist: String::from(artist),
             album: String::from(album),
             label: label.replace("(", ""),
+            spotify: vec![], // Q: It seems like this _must_ be instantiated - is this OK?
+            metallum: vec![]
         };
 
         releases.push(release);
@@ -178,3 +101,70 @@ fn parse_releases(html: String) -> std::result::Result<Vec<Release>, String> {
 
     Ok(releases)
 }
+
+pub fn out_of_date(config: &Config) -> bool {
+    let now = Utc::now();
+    let last_update = config.last_update;
+
+    // If last update was more than 24 hours ago, return true
+    now.signed_duration_since(last_update).num_hours() > 24
+}
+
+// Q: Read somewhere that it's better to accept a slice than a vector? Should I do that?
+pub fn get_releases_today(releases: &Vec<Release>) -> Vec<Release> {
+    // Q: Should I only specify the type when the compiler can't infer it or should I always do it?
+    let mut releases_today : Vec<Release> = Vec::new();
+
+    for release in releases {
+        if release.date == Local::now().date_naive() {
+            // Q: I am creating a copy here; how can I return a slice of refs to existing releases?
+            releases_today.push(release.clone());
+        }
+    }
+
+    releases_today
+}
+
+// Q: I only want to return an error - is this the way to do it?
+pub fn enrich_with_spotify(client_id: String, client_secret: String, releases: &mut Vec<Release>) -> Result<(), String> {
+    let spotify_client = spotify::Spotify::new(client_id.as_str(), client_secret.as_str())?;
+
+    for release in releases {
+        // Fetch release.spotify data here
+        let _ = spotify_client.find_artist(&release.artist);
+    }
+
+    Ok(())
+}
+
+
+// Wrapper for fetching latest releases for given date range
+//
+// First attempts to fetch data from local file; if that fails OR if it's too old
+// re-fetch data from release.
+// pub fn get_config() -> Result<MetalPalConfig, String> {
+//     let config_result = fetch_config_from_file();
+//
+//     if let Ok(config) = config_result {
+//         // We have found releases from file, return those instead of fetching from release
+//         println!("Found config '{}'", CONFIG_FILE);
+//         return Ok(config);
+//     } else {
+//         println!("Failed to find config file '{}'; fetching from release...", CONFIG_FILE);
+//     }
+//
+//     // TODO: Check last_update
+//
+//     // File lookup failed, fetch releases from release instead
+//     let releases = fetch_releases()?;
+//     let config = MetalPalConfig {
+//         full_path: full_path().unwrap(),
+//         last_update: Utc::now(),
+//         releases,
+//     };
+//
+//     // Attempt to write releases to file
+//     write_releases_to_file(&config)?;
+//
+//     Ok(config)
+// }
