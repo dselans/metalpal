@@ -1,6 +1,7 @@
 mod spotify;
 
 use crate::config::{Config, Release, SpotifyMetadata};
+use crate::AppError;
 use chrono::prelude::{Local, NaiveDate, Utc};
 use log::debug;
 use regex::Regex;
@@ -9,22 +10,22 @@ use scraper::{Html, Selector};
 const LOUDWIRE_URL: &str = "https://loudwire.com/2023-hard-rock-metal-album-release-calendar/";
 
 // Fetches latest releases from release
-pub async fn fetch_releases() -> Result<Vec<Release>, String> {
+pub async fn fetch_releases() -> Result<Vec<Release>, AppError> {
     // let resp = reqwest::blocking::get(LOUDWIRE_URL).map_err(|e| e.to_string())?;
-    let resp = reqwest::get(LOUDWIRE_URL)
-        .await
-        .map_err(|e| e.to_string())?;
+    let resp = reqwest::get(LOUDWIRE_URL).await?;
 
     if resp.status() != reqwest::StatusCode::OK {
-        return Err(format!("Received non-200 status code {}", resp.status()));
+        return Err(AppError::GenericError {
+            0: format!("Received non-200 status code: {}", resp.status()),
+        });
     }
 
-    let body = resp.text().await.map_err(|e| e.to_string())?;
+    let body = resp.text().await?;
 
     // Parse the document
     let fragment = Html::parse_document(&body);
 
-    let closer = Selector::parse("div.pod-content > p").unwrap();
+    let closer = Selector::parse("div.pod-content > p")?;
 
     let mut releases = Vec::new();
 
@@ -39,10 +40,12 @@ pub async fn fetch_releases() -> Result<Vec<Release>, String> {
                 }
                 Err(e) => {
                     // Only explode on issues unrelated to date parsing
-                    if e.contains("Could not parse date") {
+                    if e.to_string().contains("Could not parse date") {
                         continue;
                     } else {
-                        return Err(e);
+                        return Err(AppError::GenericError {
+                            0: format!("Could not parse date: {}", e.to_string()),
+                        });
                     }
                 }
             };
@@ -52,18 +55,22 @@ pub async fn fetch_releases() -> Result<Vec<Release>, String> {
     Ok(releases)
 }
 
-fn parse_releases(html: String) -> Result<Vec<Release>, String> {
+fn parse_releases(html: String) -> Result<Vec<Release>, AppError> {
     let mut releases = Vec::new();
 
     // Parse date
-    let date_re = Regex::new(r"^<p><strong>(\w+ \d{1,2}, \d{4})</strong>").unwrap(); // can I unwrap or default?
+    let date_re = Regex::new(r"^<p><strong>(\w+ \d{1,2}, \d{4})</strong>")?;
 
     let date = match date_re.captures(&html) {
         Some(caps) => {
             let date_str = caps.get(1).map_or("", |m| m.as_str());
-            NaiveDate::parse_from_str(date_str, "%B %d, %Y").unwrap()
+            NaiveDate::parse_from_str(date_str, "%B %d, %Y")?
         }
-        None => return Err(String::from("Could not parse date")),
+        None => {
+            return Err(AppError::GenericError {
+                0: format!("Could not parse date from {}", html),
+            })
+        }
     };
 
     // Parse releases

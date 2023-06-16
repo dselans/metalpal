@@ -47,7 +47,7 @@ async fn main() {
                 config.last_update = chrono::Utc::now();
                 config.releases = releases
             }
-            Err(e) => fatal_error(e),
+            Err(e) => fatal_error(e.to_string()),
         };
     } else {
         debug!("Config is up to date; skipping fetch...");
