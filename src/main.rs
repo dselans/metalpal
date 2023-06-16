@@ -1,4 +1,5 @@
 mod config;
+mod error;
 mod release;
 
 use crate::config::Config;
@@ -58,7 +59,7 @@ async fn main() {
     // Save config to file
     if let Err(e) = config::save_config(&config) {
         // DS: I understand why there's no traditional string concat - is this the accepted/idiomatic way to do it?
-        fatal_error(["Failed to save config: ", e.as_str()].join(""));
+        fatal_error(e.to_string());
     }
 
     // Get today's releases

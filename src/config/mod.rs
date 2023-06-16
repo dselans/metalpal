@@ -1,9 +1,12 @@
 use chrono::prelude::{NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
+use serde_json::json_unexpected;
 use std::fs;
 use std::io;
 use std::io::Write;
 use std::ops::Sub;
+
+use crate::error::AppError;
 
 const CONFIG_FILE: &str = ".metalpal.json";
 
@@ -97,9 +100,9 @@ pub fn setup_config() -> Result<Config, String> {
     Ok(config)
 }
 
-pub fn save_config(config: &Config) -> Result<(), String> {
-    let json_str = serde_json::to_string_pretty(&config).map_err(|e| e.to_string())?;
-    fs::write(&config.full_path, json_str).map_err(|e| e.to_string())?;
+pub fn save_config(config: &Config) -> Result<(), AppError> {
+    let json_str = serde_json::to_string_pretty(&config)?;
+    fs::write(&config.full_path, json_str)?;
 
     Ok(())
 }
