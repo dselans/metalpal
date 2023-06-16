@@ -3,7 +3,8 @@ mod error;
 mod release;
 
 use crate::config::Config;
-use log::{debug, error, info, log_enabled, Level};
+use crate::error::AppError;
+use log::{debug, error, info};
 use std::env;
 
 // Logic
@@ -33,13 +34,9 @@ use std::env;
 async fn main() {
     setup_logging();
 
-    error!("this is printed by default");
-    debug!("This is debug");
-    info!("This is info");
-
     let mut config = match load_or_setup_config() {
         Ok(config) => config,
-        Err(e) => fatal_error(e),
+        Err(e) => fatal_error(e.to_string()),
     };
 
     // Outdated releases?
@@ -111,7 +108,7 @@ fn setup_logging() {
 
 // Q: Should I return a String for errors or my own custom error?
 // My guess: implement Display trait on my custom type so it can be println!'d. Is this correct?
-fn load_or_setup_config() -> Result<Config, String> {
+fn load_or_setup_config() -> Result<Config, AppError> {
     match config::load_config() {
         Ok(config) => {
             debug!("Successfully loaded existing config");

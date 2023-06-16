@@ -2,6 +2,8 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum AppError {
+    #[error("Error: {0}")]
+    GenericError(String),
     // #[error("This is a generic error")]
     // GenericError,
     #[error("JSON error: {source}")]

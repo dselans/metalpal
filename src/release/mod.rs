@@ -1,6 +1,6 @@
 mod spotify;
 
-use crate::config::{Config, MetallumMetadata, Release, SpotifyMetadata};
+use crate::config::{Config, Release, SpotifyMetadata};
 use chrono::prelude::{Local, NaiveDate, Utc};
 use log::debug;
 use regex::Regex;
@@ -87,7 +87,7 @@ fn parse_releases(html: String) -> Result<Vec<Release>, String> {
 
         let artist = caps.get(1).map_or("", |m| m.as_str());
         let album = caps.get(2).map_or("", |m| m.as_str());
-        let mut label = caps.get(3).map_or("", |m| m.as_str());
+        let label = caps.get(3).map_or("", |m| m.as_str());
 
         let release = Release {
             date,

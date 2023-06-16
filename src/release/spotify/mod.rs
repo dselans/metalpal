@@ -6,14 +6,14 @@ pub struct Spotify {
     pub client: ClientCredsSpotify,
 }
 
-pub struct Artist {
-    pub name: String,
-    pub url: String,
-    pub country: String,
-    pub years_active: String,
-    pub genre: String,
-    pub monthly_listeners: i64,
-}
+// pub struct Artist {
+//     pub name: String,
+//     pub url: String,
+//     pub country: String,
+//     pub years_active: String,
+//     pub genre: String,
+//     pub monthly_listeners: i64,
+// }
 
 impl Spotify {
     // Q: Since both args are strings, any way to shorten this?

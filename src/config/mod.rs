@@ -1,6 +1,5 @@
 use chrono::prelude::{NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
-use serde_json::json_unexpected;
 use std::fs;
 use std::io;
 use std::io::Write;
@@ -48,37 +47,43 @@ pub struct MetallumMetadata {
     pub genre: String,
 }
 
-pub fn full_path() -> Result<String, String> {
+pub fn full_path() -> Result<String, AppError> {
     let home_dir_opt = home::home_dir();
     let home_dir = match home_dir_opt {
         Some(home_dir) => home_dir.display().to_string(),
-        None => return Err(String::from("Failed to get home directory")),
+        None => {
+            return Err(AppError::GenericError {
+                0: "Could not find home directory".to_string(),
+            })
+        }
     };
 
     Ok(home_dir.to_owned() + "/" + CONFIG_FILE)
 }
 
-pub fn load_config() -> Result<Config, String> {
+pub fn load_config() -> Result<Config, AppError> {
     // Try to get homedir
-    let full_path = full_path().unwrap();
+    let full_path = full_path()?;
 
     // Try to lookup file
     if !std::path::Path::new(&full_path).exists() {
-        return Err(format!("Config file '{}' does not exist", full_path));
+        return Err(AppError::GenericError {
+            0: format!("File '{}' does not exist", full_path.as_str()),
+        });
     }
 
     // Try to read + parse
-    let contents = fs::read_to_string(full_path).map_err(|e| e.to_string())?;
-    let config: Config = serde_json::from_str(contents.as_str()).map_err(|e| e.to_string())?; // How to avoid this map_err boilerplate?
+    let contents = fs::read_to_string(full_path)?;
+    let config: Config = serde_json::from_str(contents.as_str())?;
 
     Ok(config)
 }
 
 // Interactive setup
-pub fn setup_config() -> Result<Config, String> {
+pub fn setup_config() -> Result<Config, AppError> {
     // Q: There are no zero values (or nil/null) - what is the idiomatic way to instantiate a struct with default values?
     let mut config = Config {
-        full_path: full_path().unwrap(),
+        full_path: full_path()?,
         last_update: Utc::now().sub(chrono::Duration::days(100)), // Default to force update
         releases: Vec::new(),
         channels: vec![],
@@ -108,16 +113,14 @@ pub fn save_config(config: &Config) -> Result<(), AppError> {
     Ok(())
 }
 
-fn ask_question(question: &str) -> Result<String, String> {
+fn ask_question(question: &str) -> Result<String, AppError> {
     loop {
         print!("{}", question);
-        io::stdout().flush().unwrap(); // Need to do this to ensure print! shows immediate output
+        io::stdout().flush()?; // Need to do this to ensure print! shows immediate output
 
         let mut input = String::new();
 
-        std::io::stdin()
-            .read_line(&mut input)
-            .map_err(|e| e.to_string())?;
+        std::io::stdin().read_line(&mut input)?;
 
         if input.trim().is_empty() {
             continue;
