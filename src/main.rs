@@ -1,7 +1,9 @@
-mod release;
 mod config;
+mod release;
 
-use crate::config ::Config;
+use crate::config::Config;
+use log::{debug, error, info, log_enabled, Level};
+use std::env;
 
 // Logic
 //
@@ -26,7 +28,14 @@ use crate::config ::Config;
 //
 // 7. Slack alert
 
-fn main() {
+#[tokio::main]
+async fn main() {
+    setup_logging();
+
+    error!("this is printed by default");
+    debug!("This is debug");
+    info!("This is info");
+
     let mut config = match load_or_setup_config() {
         Ok(config) => config,
         Err(e) => fatal_error(e),
@@ -34,16 +43,16 @@ fn main() {
 
     // Outdated releases?
     if release::out_of_date(&config) {
-        match release::fetch_releases() {
+        match release::fetch_releases().await {
             Ok(releases) => {
-                println!("Fetched {} releases", releases.len()); // Q: Intellij marks releases.len() as an error: `usize` doesn't implement `Display` (required by {}); any way to fix?
+                debug!("Fetched {} releases", releases.len()); // Q: Intellij marks releases.len() as an error: `usize` doesn't implement `Display` (required by {}); any way to fix?
                 config.last_update = chrono::Utc::now();
                 config.releases = releases
             }
             Err(e) => fatal_error(e),
         };
     } else {
-        println!("Config is up to date; skipping fetch...");
+        debug!("Config is up to date; skipping fetch...");
     }
 
     // Save config to file
@@ -58,12 +67,18 @@ fn main() {
     if releases_today.len() == 0 {
         exit(String::from("No releases today"));
     } else {
-        println!("There are {} releases today!", releases_today.len()); // Q: Same intellij problem here
+        info!("There are {} releases today!", releases_today.len()); // Q: Same intellij problem here
     }
 
     // Enrich today's releases with release.spotify metadata
-    if let Err(e) = release::enrich_with_spotify(config.spotify_client_id, config.spotify_client_secret,&mut releases_today) {
-        fatal_error(e);
+    if let Err(e) = release::enrich_with_spotify(
+        config.spotify_client_id,
+        config.spotify_client_secret,
+        &mut releases_today,
+    )
+    .await
+    {
+        fatal_error(e)
     };
 
     // // Enrich today's releases with metallum metadata
@@ -77,25 +92,40 @@ fn main() {
     // TODO: Slack alert releases
 }
 
+fn setup_logging() {
+    let args: Vec<_> = env::args().collect();
+    if args.len() > 1 {
+        if args[1] == "-d" {
+            env::set_var("RUST_LOG", "metalpal=debug");
+        }
+    } else {
+        env::set_var("RUST_LOG", "metalpal=info");
+    }
+
+    env_logger::init();
+}
+
 // Q: Should I return a String for errors or my own custom error?
 // My guess: implement Display trait on my custom type so it can be println!'d. Is this correct?
 fn load_or_setup_config() -> Result<Config, String> {
-    if let Ok(load_result) = config::load_config() {
-        println!("Loaded existing config");
-        return Ok(load_result);
+    match config::load_config() {
+        Ok(config) => {
+            debug!("Successfully loaded existing config");
+            Ok(config)
+        }
+        Err(e) => {
+            error!("Error loading config: {:?}", e);
+            config::setup_config()
+        }
     }
-
-    println!("WARNING: Unable to find existing config; performing initial setup...");
-
-    config::setup_config()
 }
 
 fn exit(m: String) -> ! {
-    println!("{}", m);
+    info!("{}", m);
     std::process::exit(0);
 }
 
 fn fatal_error(m: String) -> ! {
-    println!("Fatal error: {}", m);
+    error!("Fatal error: {}", m);
     std::process::exit(1);
 }

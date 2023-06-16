@@ -1,6 +1,6 @@
-use chrono::prelude::{Utc, NaiveDate};
+use chrono::prelude::{NaiveDate, Utc};
+use serde::{Deserialize, Serialize};
 use std::fs;
-use serde::{Serialize, Deserialize};
 use std::io;
 use std::io::Write;
 use std::ops::Sub;
@@ -10,13 +10,12 @@ const CONFIG_FILE: &str = ".metalpal.json";
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
     pub full_path: String,
-    pub last_update:chrono::DateTime<chrono::Utc>,
+    pub last_update: chrono::DateTime<chrono::Utc>,
     pub releases: Vec<Release>,
     pub channels: Vec<String>,
     pub slack_bot_token: String,
     pub spotify_client_id: String,
     pub spotify_client_secret: String,
-
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -25,29 +24,32 @@ pub struct Release {
     pub artist: String,
     pub album: String,
     pub label: String,
-    pub spotify: Vec<SpotifyMetadata>,
-    pub metallum: Vec<MetallumMetadata>,
+    pub spotify: Option<SpotifyMetadata>,
+    // pub metallum: MetallumMetadata,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct SpotifyMetadata {
-    url: String,
-    monthly_listeners: i64,
+    pub id: String,
+    pub url: String,
+    pub genres: Vec<String>,
+    pub popularity: i64,
+    pub followers: i64,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct MetallumMetadata {
-    url: String,
-    country: String,
-    years_active: String,
-    genre: String,
+    pub url: String,
+    pub country: String,
+    pub years_active: String,
+    pub genre: String,
 }
 
 pub fn full_path() -> Result<String, String> {
     let home_dir_opt = home::home_dir();
     let home_dir = match home_dir_opt {
         Some(home_dir) => home_dir.display().to_string(),
-        None => return Err(String::from("Failed to get home directory"))
+        None => return Err(String::from("Failed to get home directory")),
     };
 
     Ok(home_dir.to_owned() + "/" + CONFIG_FILE)
@@ -64,7 +66,7 @@ pub fn load_config() -> Result<Config, String> {
 
     // Try to read + parse
     let contents = fs::read_to_string(full_path).map_err(|e| e.to_string())?;
-    let config : Config = serde_json::from_str(contents.as_str()).map_err(|e| e.to_string())?; // How to avoid this map_err boilerplate?
+    let config: Config = serde_json::from_str(contents.as_str()).map_err(|e| e.to_string())?; // How to avoid this map_err boilerplate?
 
     Ok(config)
 }
@@ -79,14 +81,13 @@ pub fn setup_config() -> Result<Config, String> {
         channels: vec![],
         slack_bot_token: "".to_string(),
         spotify_client_id: "".to_string(),
-        spotify_client_secret: "".to_string()
+        spotify_client_secret: "".to_string(),
     };
 
     let slack_bot_token = ask_question("Slack bot token: ")?;
     let channels = ask_question("Slack channels (comma separated): ")?;
     let spotify_client_id = ask_question("Spotify client id: ")?;
     let spotify_client_secret = ask_question("Spotify client secret: ")?;
-
 
     config.slack_bot_token = slack_bot_token;
     config.channels = channels.split(",").map(|s| s.trim().to_string()).collect();
@@ -110,7 +111,9 @@ fn ask_question(question: &str) -> Result<String, String> {
 
         let mut input = String::new();
 
-        std::io::stdin().read_line(&mut input).map_err(|e| e.to_string())?;
+        std::io::stdin()
+            .read_line(&mut input)
+            .map_err(|e| e.to_string())?;
 
         if input.trim().is_empty() {
             continue;

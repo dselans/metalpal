@@ -1,21 +1,25 @@
 mod spotify;
 
-use scraper::{Html, Selector};
+use crate::config::{Config, MetallumMetadata, Release, SpotifyMetadata};
+use chrono::prelude::{Local, NaiveDate, Utc};
+use log::debug;
 use regex::Regex;
-use crate::config::{Config, Release};
-use chrono::prelude::{Utc, NaiveDate, Local};
+use scraper::{Html, Selector};
 
 const LOUDWIRE_URL: &str = "https://loudwire.com/2023-hard-rock-metal-album-release-calendar/";
 
 // Fetches latest releases from release
-pub fn fetch_releases() -> Result<Vec<Release>, String> {
-    let resp = reqwest::blocking::get(LOUDWIRE_URL).map_err(|e| e.to_string())?;
+pub async fn fetch_releases() -> Result<Vec<Release>, String> {
+    // let resp = reqwest::blocking::get(LOUDWIRE_URL).map_err(|e| e.to_string())?;
+    let resp = reqwest::get(LOUDWIRE_URL)
+        .await
+        .map_err(|e| e.to_string())?;
 
     if resp.status() != reqwest::StatusCode::OK {
         return Err(format!("Received non-200 status code {}", resp.status()));
     }
 
-    let body = resp.text().map_err(|e| e.to_string())?;
+    let body = resp.text().await.map_err(|e| e.to_string())?;
 
     // Parse the document
     let fragment = Html::parse_document(&body);
@@ -32,7 +36,7 @@ pub fn fetch_releases() -> Result<Vec<Release>, String> {
                     for release in partial_releases {
                         releases.push(release);
                     }
-                },
+                }
                 Err(e) => {
                     // Only explode on issues unrelated to date parsing
                     if e.contains("Could not parse date") {
@@ -58,7 +62,7 @@ fn parse_releases(html: String) -> Result<Vec<Release>, String> {
         Some(caps) => {
             let date_str = caps.get(1).map_or("", |m| m.as_str());
             NaiveDate::parse_from_str(date_str, "%B %d, %Y").unwrap()
-        },
+        }
         None => return Err(String::from("Could not parse date")),
     };
 
@@ -73,7 +77,7 @@ fn parse_releases(html: String) -> Result<Vec<Release>, String> {
             None => {
                 // Regex didn't match
                 continue;
-            },
+            }
         };
 
         // Not sure if this is even possible
@@ -90,8 +94,7 @@ fn parse_releases(html: String) -> Result<Vec<Release>, String> {
             artist: String::from(artist),
             album: String::from(album),
             label: label.replace("(", ""),
-            spotify: vec![], // Q: It seems like this _must_ be instantiated - is this OK?
-            metallum: vec![]
+            spotify: None,
         };
 
         releases.push(release);
@@ -113,7 +116,7 @@ pub fn out_of_date(config: &Config) -> bool {
 // Q: Read somewhere that it's better to accept a slice than a vector? Should I do that?
 pub fn get_releases_today(releases: &Vec<Release>) -> Vec<Release> {
     // Q: Should I only specify the type when the compiler can't infer it or should I always do it?
-    let mut releases_today : Vec<Release> = Vec::new();
+    let mut releases_today: Vec<Release> = Vec::new();
 
     for release in releases {
         if release.date == Local::now().date_naive() {
@@ -126,45 +129,36 @@ pub fn get_releases_today(releases: &Vec<Release>) -> Vec<Release> {
 }
 
 // Q: I only want to return an error - is this the way to do it?
-pub fn enrich_with_spotify(client_id: String, client_secret: String, releases: &mut Vec<Release>) -> Result<(), String> {
-    let spotify_client = spotify::Spotify::new(client_id.as_str(), client_secret.as_str())?;
+pub async fn enrich_with_spotify(
+    client_id: String,
+    client_secret: String,
+    releases: &mut Vec<Release>,
+) -> Result<(), String> {
+    let spotify_client = spotify::Spotify::new(client_id.as_str(), client_secret.as_str()).await?;
 
     for release in releases {
         // Fetch release.spotify data here
-        let _ = spotify_client.find_artist(&release.artist);
+        debug!("looking up artist info for: {}", release.artist);
+
+        let spotify_artist_info = spotify_client.get_artists(release.artist.as_str()).await?;
+
+        if spotify_artist_info.len() == 0 {
+            debug!("No artist info found for {}", release.artist);
+            continue;
+        }
+
+        if spotify_artist_info.len() == 1 {
+            release.spotify = Some(SpotifyMetadata {
+                id: spotify_artist_info[0].id.to_string(),
+                url: spotify_artist_info[0].href.clone(),
+                genres: spotify_artist_info[0].genres.clone(),
+                popularity: i64::from(spotify_artist_info[0].popularity),
+                followers: i64::from(spotify_artist_info[0].popularity),
+            });
+
+            continue;
+        }
     }
 
     Ok(())
 }
-
-
-// Wrapper for fetching latest releases for given date range
-//
-// First attempts to fetch data from local file; if that fails OR if it's too old
-// re-fetch data from release.
-// pub fn get_config() -> Result<MetalPalConfig, String> {
-//     let config_result = fetch_config_from_file();
-//
-//     if let Ok(config) = config_result {
-//         // We have found releases from file, return those instead of fetching from release
-//         println!("Found config '{}'", CONFIG_FILE);
-//         return Ok(config);
-//     } else {
-//         println!("Failed to find config file '{}'; fetching from release...", CONFIG_FILE);
-//     }
-//
-//     // TODO: Check last_update
-//
-//     // File lookup failed, fetch releases from release instead
-//     let releases = fetch_releases()?;
-//     let config = MetalPalConfig {
-//         full_path: full_path().unwrap(),
-//         last_update: Utc::now(),
-//         releases,
-//     };
-//
-//     // Attempt to write releases to file
-//     write_releases_to_file(&config)?;
-//
-//     Ok(config)
-// }
