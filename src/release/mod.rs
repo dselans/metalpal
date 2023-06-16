@@ -1,6 +1,7 @@
 mod spotify;
 
 use crate::config::{Config, Release, SpotifyMetadata};
+use crate::release::spotify::Spotify;
 use crate::AppError;
 use chrono::prelude::{Local, NaiveDate, Utc};
 use log::debug;
@@ -139,7 +140,7 @@ pub async fn enrich_with_spotify(
     client_secret: String,
     releases: &mut Vec<Release>,
 ) -> Result<(), AppError> {
-    let spotify_client = spotify::Spotify::new(client_id.as_str(), client_secret.as_str()).await?;
+    let spotify_client = Spotify::new(client_id.as_str(), client_secret.as_str()).await?;
 
     for release in releases {
         // Fetch release.spotify data here
