@@ -72,14 +72,17 @@ async fn main() {
 
     // Enrich today's releases with release.spotify metadata
     if let Err(e) = release::enrich_with_spotify(
-        config.spotify_client_id,
-        config.spotify_client_secret,
+        config.spotify_client_id.clone(),
+        config.spotify_client_secret.clone(),
         &mut releases_today,
     )
     .await
     {
         fatal_error(e)
     };
+
+    // TODO: Merge existing config with new enriched releases
+    // Will have to do a "smart" merge to not overwrite existing releases
 
     // // Enrich today's releases with metallum metadata
     // let releases_today = match release::enrich_with_metallum(releases_today) {
