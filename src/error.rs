@@ -41,6 +41,12 @@ pub enum AppError {
         #[from]
         source: chrono::ParseError,
     },
+
+    #[error("Spotify client error: {source}")]
+    SpotifyClientError {
+        #[from]
+        source: rspotify::ClientError,
+    },
 }
 
 // Keeping this around as a reminder for how to do this manually

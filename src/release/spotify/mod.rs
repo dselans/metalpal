@@ -1,3 +1,4 @@
+use crate::AppError;
 use log::debug;
 use rspotify::model::{Page, SearchResult};
 use rspotify::{model::FullArtist, model::SearchType, prelude::*, ClientCredsSpotify, Credentials};
@@ -18,29 +19,30 @@ pub struct Spotify {
 impl Spotify {
     // Q: Since both args are strings, any way to shorten this?
     // Q: Is it OK to return an error from a constructor?
-    pub async fn new(client_id: &str, client_secret: &str) -> Result<Self, String> {
+    pub async fn new(client_id: &str, client_secret: &str) -> Result<Self, AppError> {
         let creds = Credentials::new(client_id, client_secret);
         let client = ClientCredsSpotify::new(creds);
 
         // Obtaining the access token. Requires to be mutable because the internal
         // token will be modified. We don't need OAuth for this specific endpoint,
         // so `...` is used instead of `prompt_for_user_token`.
-        client.request_token().await.map_err(|e| e.to_string())?;
+        client.request_token().await?;
 
         Ok(Spotify { client })
     }
 
-    pub async fn get_artists(&self, artist_name: &str) -> Result<Vec<FullArtist>, String> {
+    pub async fn get_artists(&self, artist_name: &str) -> Result<Vec<FullArtist>, AppError> {
         let search_result = self
             .client
             .search(artist_name, SearchType::Artist, None, None, Some(10), None)
-            .await
-            .map_err(|e| e.to_string())?;
+            .await?;
 
         let artists = match search_result {
             SearchResult::Artists(artists) => artists,
             _ => {
-                return Err("Artists not found in response".to_string());
+                return Err(AppError::GenericError(
+                    "Unexpected search result type does not contain artists".to_string(),
+                ));
             }
         };
 

@@ -76,7 +76,7 @@ async fn main() {
     )
     .await
     {
-        fatal_error(e)
+        fatal_error(e.to_string())
     };
 
     // TODO: Merge existing config with new enriched releases

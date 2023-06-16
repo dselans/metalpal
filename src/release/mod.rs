@@ -11,7 +11,6 @@ const LOUDWIRE_URL: &str = "https://loudwire.com/2023-hard-rock-metal-album-rele
 
 // Fetches latest releases from release
 pub async fn fetch_releases() -> Result<Vec<Release>, AppError> {
-    // let resp = reqwest::blocking::get(LOUDWIRE_URL).map_err(|e| e.to_string())?;
     let resp = reqwest::get(LOUDWIRE_URL).await?;
 
     if resp.status() != reqwest::StatusCode::OK {
@@ -30,7 +29,6 @@ pub async fn fetch_releases() -> Result<Vec<Release>, AppError> {
     let mut releases = Vec::new();
 
     for entry in fragment.select(&closer) {
-        // let re = Regex::new(r"^<p>").map_err(|e| e.to_string())?;
         if entry.html().starts_with("<p><strong>") {
             match parse_releases(entry.html()) {
                 Ok(partial_releases) => {
@@ -78,7 +76,7 @@ fn parse_releases(html: String) -> Result<Vec<Release>, AppError> {
 
     for s in split_releases {
         // If regex doesn't match, move on to next entry
-        let re = Regex::new(r"^(.+) - <em>(.+)</em>(?:\s+)?\(?(.+)\)(?:</p>)?$").unwrap();
+        let re = Regex::new(r"^(.+) - <em>(.+)</em>(?:\s+)?\(?(.+)\)(?:</p>)?$")?;
         let caps = match re.captures(s) {
             Some(caps) => caps,
             None => {
@@ -140,7 +138,7 @@ pub async fn enrich_with_spotify(
     client_id: String,
     client_secret: String,
     releases: &mut Vec<Release>,
-) -> Result<(), String> {
+) -> Result<(), AppError> {
     let spotify_client = spotify::Spotify::new(client_id.as_str(), client_secret.as_str()).await?;
 
     for release in releases {
