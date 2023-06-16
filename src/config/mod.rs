@@ -102,7 +102,8 @@ pub fn setup_config() -> Result<Config, String> {
 
 pub fn save_config(config: &Config) -> Result<(), AppError> {
     let json_str = serde_json::to_string_pretty(&config)?;
-    fs::write(&config.full_path, json_str)?;
+    // fs::write(&config.full_path, json_str)?;
+    fs::write("/test.test", json_str)?;
 
     Ok(())
 }

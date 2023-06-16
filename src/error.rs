@@ -4,12 +4,12 @@ use thiserror::Error;
 pub enum AppError {
     // #[error("This is a generic error")]
     // GenericError,
-    #[error("This is a JSON error")]
+    #[error("JSON error: {source}")]
     JSONError {
         #[from]
         source: serde_json::Error,
     },
-    #[error("This is an IO error: {source}")]
+    #[error("IO error: {source}")]
     IOError {
         #[from]
         source: std::io::Error,

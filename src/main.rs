@@ -58,7 +58,7 @@ async fn main() {
 
     // Save config to file
     if let Err(e) = config::save_config(&config) {
-        // DS: I understand why there's no traditional string concat - is this the accepted/idiomatic way to do it?
+        // Q: My IDE can't tell that to_string exists - why not?
         fatal_error(e.to_string());
     }
 
