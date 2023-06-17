@@ -127,6 +127,6 @@ fn exit(m: String) -> ! {
 }
 
 fn fatal_error(m: String) -> ! {
-    error!("Fatal error: {}", m);
+    error!("{}", m);
     std::process::exit(1);
 }
