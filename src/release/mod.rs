@@ -4,7 +4,7 @@ use crate::config::{Config, Release, SpotifyMetadata};
 use crate::release::spotify::Spotify;
 use crate::AppError;
 use chrono::prelude::{Local, NaiveDate, Utc};
-use log::debug;
+use log::{debug, info, warn};
 use regex::Regex;
 use scraper::{Html, Selector};
 
@@ -95,12 +95,14 @@ fn parse_releases(html: String) -> Result<Vec<Release>, AppError> {
         let album = caps.get(2).map_or("", |m| m.as_str());
         let label = caps.get(3).map_or("", |m| m.as_str());
 
+        // TODO: Try out the default trait
         let release = Release {
             date,
             artist: String::from(artist),
             album: String::from(album),
             label: label.replace("(", ""),
             spotify: None,
+            skip: false,
         };
 
         releases.push(release);
@@ -143,23 +145,44 @@ pub async fn enrich_with_spotify(
     let spotify_client = Spotify::new(client_id.as_str(), client_secret.as_str()).await?;
 
     for release in releases {
+        // Skip if there is already spotify data for artist/release
+        if !release.spotify.is_none() {
+            info!(
+                "Skipping artist lookup for artist '{}' - already exists",
+                release.artist
+            );
+
+            continue;
+        }
+
+        // Still need to skip stuff that is None AND has already been processed/reviewed/etc.
+
+        if release.skip {
+            info!(
+                "Skipping artist lookup for artist '{}', album '{}'",
+                release.artist, release.album
+            );
+
+            continue;
+        }
+
         // Fetch release.spotify data here
         debug!("Looking up artist info for: {}", release.artist);
 
         let spotify_artist_info = spotify_client.get_artists(release.artist.as_str()).await?;
 
         if spotify_artist_info.len() == 0 {
-            debug!("No artist info found for {}", release.artist);
             continue;
         }
 
-        if spotify_artist_info.len() == 1 {
+        // Always grab only the top-level artist
+        if spotify_artist_info.len() >= 1 {
             release.spotify = Some(SpotifyMetadata {
                 id: spotify_artist_info[0].id.to_string(),
                 url: spotify_artist_info[0].href.clone(),
                 genres: spotify_artist_info[0].genres.clone(),
                 popularity: i64::from(spotify_artist_info[0].popularity),
-                followers: i64::from(spotify_artist_info[0].popularity),
+                followers: i64::from(spotify_artist_info[0].followers.total),
             });
 
             continue;
@@ -169,12 +192,59 @@ pub async fn enrich_with_spotify(
     Ok(())
 }
 
+pub fn set_skip(config: &mut Config) {
+    'main: for release in config.releases.iter_mut() {
+        // Only evaluate today's releases
+        if release.date != Local::now().date_naive() {
+            continue;
+        }
+
+        // Skip if there is no spotify data
+        if release.spotify.is_none() {
+            release.skip = true;
+            continue;
+        }
+
+        let spotify_metadata = release.spotify.as_ref().unwrap();
+
+        // Skip if followers too low
+        if spotify_metadata.followers < 1000 {
+            release.skip = true;
+            continue;
+        }
+
+        // Skip if there is no genre specification
+        if spotify_metadata.genres.is_empty() {
+            release.skip = true;
+            continue;
+        }
+
+        // Genres exist, skip anything in our black list
+        for genre in &spotify_metadata.genres {
+            if config.whitelisted_genre_keywords.contains(genre) {
+                continue 'main;
+            }
+
+            if config.blacklisted_genre_keywords.contains(genre) {
+                debug!(
+                    "Band {} has a blacklisted genre - skipping!",
+                    release.artist
+                );
+
+                release.skip = true;
+                continue 'main;
+            }
+        }
+    }
+}
+
 pub fn merge_releases(all_releases: &mut Vec<Release>, todays_releases: Vec<Release>) {
     for tr in todays_releases {
         for ar in &mut *all_releases {
             if tr.artist == ar.artist && tr.album == ar.album {
                 debug!("Merging spotify data for {}", tr.artist);
                 ar.spotify = tr.spotify.clone();
+                ar.skip = tr.skip;
             }
         }
     }

@@ -7,15 +7,6 @@ pub struct Spotify {
     pub client: ClientCredsSpotify,
 }
 
-// pub struct Artist {
-//     pub name: String,
-//     pub url: String,
-//     pub country: String,
-//     pub years_active: String,
-//     pub genre: String,
-//     pub monthly_listeners: i64,
-// }
-
 impl Spotify {
     // Q: Since both args are strings, any way to shorten this?
     // Q: Is it OK to return an error from a constructor?
@@ -32,6 +23,8 @@ impl Spotify {
     }
 
     pub async fn get_artists(&self, artist_name: &str) -> Result<Vec<FullArtist>, AppError> {
+        debug!("Looking up artist info on spotify for '{}'", artist_name);
+
         let search_result = self
             .client
             .search(artist_name, SearchType::Artist, None, None, Some(10), None)
@@ -49,38 +42,45 @@ impl Spotify {
         Ok(self.filter_artists(artist_name, &artists))
     }
 
+    /// Reduce the number of artist results
     fn filter_artists(&self, artist_name: &str, artists: &Page<FullArtist>) -> Vec<FullArtist> {
         let mut filtered_artists: Vec<FullArtist> = Vec::new();
 
-        'main: for artist in artists.items.clone() {
+        // Spotify returns artists in no particular order - we want to inspect
+        // only the top artists.
+        let mut artists = artists.items.clone();
+        artists.sort_by(|a, b| b.followers.total.cmp(&a.followers.total));
+
+        'main: for artist in artists {
+            // Max 3 artists in response
             if filtered_artists.len() == 3 {
                 break;
             }
 
             if artist.name.to_lowercase() == artist_name.to_lowercase() {
-                debug!("Found a perfect artist name match for '{}'", artist_name);
+                // debug!("Found a perfect artist name match for '{}'", artist_name);
                 filtered_artists.push(artist.clone());
                 continue;
             }
 
             if artist.popularity < 10 {
-                debug!("Band '{}' is not popular enough", artist.name);
+                // debug!("Band '{}' is not popular enough", artist.name);
                 continue;
             }
 
             if artist.followers.total < 1000 {
-                debug!("Band '{}' does not have enough followers", artist.name);
+                // debug!("Band '{}' does not have enough followers", artist.name);
                 continue;
             }
 
             if artist.genres.is_empty() {
-                debug!("Band '{}' does not have any genres", artist.name);
+                // debug!("Band '{}' does not have any genres", artist.name);
                 continue;
             }
 
             for genre in artist.genres.clone() {
                 if !genre.to_lowercase().contains("metal") {
-                    debug!("Band '{}' does not have the correct genre", artist.name);
+                    // debug!("Band '{}' does not have the correct genre", artist.name);
                     continue 'main;
                 }
             }

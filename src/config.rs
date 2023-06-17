@@ -14,10 +14,12 @@ pub struct Config {
     pub full_path: String,
     pub last_update: chrono::DateTime<chrono::Utc>,
     pub releases: Vec<Release>,
-    pub channels: Vec<String>,
+    pub slack_channels: Vec<String>,
     pub slack_bot_token: String,
     pub spotify_client_id: String,
     pub spotify_client_secret: String,
+    pub whitelisted_genre_keywords: Vec<String>,
+    pub blacklisted_genre_keywords: Vec<String>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -26,6 +28,8 @@ pub struct Release {
     pub artist: String,
     pub album: String,
     pub label: String,
+    #[serde(default)]
+    pub skip: bool,
     pub spotify: Option<SpotifyMetadata>,
     // pub metallum: MetallumMetadata,
 }
@@ -86,21 +90,48 @@ pub fn setup_config() -> Result<Config, AppError> {
         full_path: full_path()?,
         last_update: Utc::now().sub(chrono::Duration::days(100)), // Default to force update
         releases: Vec::new(),
-        channels: vec![],
+        slack_channels: vec![],
         slack_bot_token: "".to_string(),
         spotify_client_id: "".to_string(),
         spotify_client_secret: "".to_string(),
+        whitelisted_genre_keywords: vec![],
+        blacklisted_genre_keywords: vec![],
     };
 
-    let slack_bot_token = ask_question("Slack bot token: ")?;
-    let channels = ask_question("Slack channels (comma separated): ")?;
-    let spotify_client_id = ask_question("Spotify client id: ")?;
-    let spotify_client_secret = ask_question("Spotify client secret: ")?;
+    let spotify_client_id = ask_question("Spotify client id (required): ", true)?;
+    let spotify_client_secret = ask_question(
+        "Spotify client secret (optional; leave blank to skip): ",
+        true,
+    )?;
+    let slack_bot_token = ask_question("Slack bot token (optional; leave blank to skip): ", false)?;
+    let channels = ask_question_multi(
+        "Slack channels (optional, comma separated; leave blank to skip): ",
+        false,
+    )?;
+    let whitelisted_genre_keywords = ask_question_multi(
+        "Whitelisted genre keywords (optional, comma separated; leave blank to skip): ",
+        false,
+    )?;
+    let blacklisted_genre_keywords = ask_question_multi(
+        "Blacklisted genre keywords (optional, comma separated; leave blank to skip): ",
+        false,
+    )?;
 
     config.slack_bot_token = slack_bot_token;
-    config.channels = channels.split(",").map(|s| s.trim().to_string()).collect();
+    config.slack_channels = channels;
     config.spotify_client_id = spotify_client_id;
     config.spotify_client_secret = spotify_client_secret;
+    config.whitelisted_genre_keywords = whitelisted_genre_keywords;
+    config.blacklisted_genre_keywords = blacklisted_genre_keywords;
+
+    println!(
+        "Number of whitelisted entries: {}",
+        config.whitelisted_genre_keywords.len()
+    );
+    println!(
+        "Number of blacklisted entries: {}",
+        config.blacklisted_genre_keywords.len()
+    );
 
     Ok(config)
 }
@@ -114,16 +145,31 @@ pub fn save_config(config: &Config) -> Result<(), AppError> {
     Ok(())
 }
 
-fn ask_question(question: &str) -> Result<String, AppError> {
+fn ask_question_multi(prompt: &str, required: bool) -> Result<Vec<String>, AppError> {
+    let answer = ask_question(prompt, required)?;
+
+    // Q: Why do I need this? .split() or map seems to create 1 element if the string is empty
+    if answer.is_empty() {
+        return Ok(vec![]);
+    }
+
+    let answer = answer.replace(" ", "");
+    let answer: Vec<String> = answer.split(",").map(str::to_string).collect();
+
+    Ok(answer)
+}
+
+fn ask_question(prompt: &str, required: bool) -> Result<String, AppError> {
     loop {
-        print!("{}", question);
+        print!("{}", prompt);
         io::stdout().flush()?; // Need to do this to ensure print! shows immediate output
 
         let mut input = String::new();
 
         std::io::stdin().read_line(&mut input)?;
 
-        if input.trim().is_empty() {
+        // If required && press enter -> ask question again
+        if required && input.trim().is_empty() {
             continue;
         }
 

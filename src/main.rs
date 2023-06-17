@@ -61,15 +61,16 @@ async fn main() {
         debug!("Config is up to date; skipping fetch...");
     }
 
-    // Save config to file
+    // Get today's releases
+    let mut releases_today = release::get_releases_today(&config.releases);
+
+    // Save again
     if let Err(e) = config::save_config(&config) {
         // Q: My IDE can't tell that to_string exists - why not?
         fatal_error(e.to_string());
     }
 
-    // Get today's releases
-    let mut releases_today = release::get_releases_today(&config.releases);
-
+    // Nothing to do if there are no releases
     if releases_today.len() == 0 {
         exit(String::from("No releases today"));
     } else {
@@ -86,6 +87,9 @@ async fn main() {
     {
         fatal_error(e.to_string())
     };
+
+    // Mark releases as skip that do not contain needed data or do not match our criteria
+    release::set_skip(&mut config);
 
     // Merge today's releases with existing releases
     release::merge_releases(&mut config.releases, releases_today);
