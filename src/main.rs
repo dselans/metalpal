@@ -4,8 +4,16 @@ mod release;
 
 use crate::config::Config;
 use crate::error::AppError;
+use clap::Parser;
 use log::{debug, error, info};
 use std::env;
+
+#[derive(Parser)]
+pub struct CLI {
+    /// Enable debug output
+    #[arg(short, long)]
+    debug: bool,
+}
 
 // Logic
 //
@@ -32,7 +40,7 @@ use std::env;
 
 #[tokio::main]
 async fn main() {
-    setup_logging();
+    setup();
 
     let mut config = match load_or_setup_config() {
         Ok(config) => config,
@@ -93,12 +101,11 @@ async fn main() {
     // TODO: Slack alert releases
 }
 
-fn setup_logging() {
-    let args: Vec<_> = env::args().collect();
-    if args.len() > 1 {
-        if args[1] == "-d" {
-            env::set_var("RUST_LOG", "metalpal=debug");
-        }
+fn setup() {
+    let cli = CLI::parse();
+
+    if cli.debug {
+        env::set_var("RUST_LOG", "metalpal=debug");
     } else {
         env::set_var("RUST_LOG", "metalpal=info");
     }
