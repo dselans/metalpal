@@ -87,8 +87,14 @@ async fn main() {
         fatal_error(e.to_string())
     };
 
-    // TODO: Merge existing config with new enriched releases
-    // Will have to do a "smart" merge to not overwrite existing releases
+    // Merge today's releases with existing releases
+    release::merge_releases(&mut config.releases, releases_today);
+
+    // Save again
+    if let Err(e) = config::save_config(&config) {
+        // Q: My IDE can't tell that to_string exists - why not?
+        fatal_error(e.to_string());
+    }
 
     // // Enrich today's releases with metallum metadata
     // let releases_today = match release::enrich_with_metallum(releases_today) {

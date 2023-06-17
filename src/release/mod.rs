@@ -144,7 +144,7 @@ pub async fn enrich_with_spotify(
 
     for release in releases {
         // Fetch release.spotify data here
-        debug!("looking up artist info for: {}", release.artist);
+        debug!("Looking up artist info for: {}", release.artist);
 
         let spotify_artist_info = spotify_client.get_artists(release.artist.as_str()).await?;
 
@@ -167,4 +167,15 @@ pub async fn enrich_with_spotify(
     }
 
     Ok(())
+}
+
+pub fn merge_releases(all_releases: &mut Vec<Release>, todays_releases: Vec<Release>) {
+    for tr in todays_releases {
+        for ar in &mut *all_releases {
+            if tr.artist == ar.artist && tr.album == ar.album {
+                debug!("Merging spotify data for {}", tr.artist);
+                ar.spotify = tr.spotify.clone();
+            }
+        }
+    }
 }
