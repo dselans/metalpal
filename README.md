@@ -1,7 +1,16 @@
 A rust re-write of a python-based bot I've been using for staying on top of new 
 metal releases.
 
-**BEWARE** I am using this project to learn rust...
+**WARNING** I am using this project to learn rust...
+
+## Install
+Either download [release](https://github.com/dselans/metalpal/releases) 
+OR build from source:
+
+1. Install rust
+2. `git clone git@github.com:dselans/metalpal.git`
+3. `cd metalpal && cargo build`
+
 ## Logic
 * Scrape loudwire for new releases
 * Save releases to `~/.metalpal.json`
