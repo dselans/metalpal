@@ -204,7 +204,7 @@ pub async fn enrich_with_metallum(releases: &mut Vec<Release>) -> Result<(), App
             );
         }
 
-        info!("Looking up metallum info for artist '{}'", release.artist);
+        debug!("Looking up metallum info for artist '{}'", release.artist);
 
         let metallum_info = metallum::get_artists(release.artist.as_str()).await?;
 

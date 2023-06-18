@@ -18,6 +18,8 @@ pub async fn get_artists(artist_name: &str) -> Result<Vec<MetallumMetadata>, App
         return Ok(Vec::new());
     }
 
+    // At least one artist found - use it
+
     info!(
         "Found {} artists in metallum for artist {}",
         response.aa_data.len(),
