@@ -30,8 +30,9 @@ pub struct Release {
     pub label: String,
     #[serde(default)]
     pub skip: bool,
+    pub skip_reasons: Vec<String>,
     pub spotify: Option<SpotifyMetadata>,
-    // pub metallum: MetallumMetadata,
+    pub metallum: Option<MetallumMetadata>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -46,9 +47,24 @@ pub struct SpotifyMetadata {
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct MetallumMetadata {
     pub url: String,
-    pub country: String,
+    pub description_short: String,
+    pub description_long: String,
+    pub country_origin: String,
+    pub locations: Vec<String>,
     pub years_active: String,
-    pub genre: String,
+    pub genres: Vec<String>,
+    pub img_url: String,
+    pub status: String,
+}
+
+type Genre = String;
+type Country = String;
+type Artist = String;
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct MetallumSearchResponse {
+    pub aa_data: Vec<(Artist, Genre, Artist)>,
 }
 
 pub fn full_path() -> Result<String, AppError> {
@@ -98,24 +114,36 @@ pub fn setup_config() -> Result<Config, AppError> {
         blacklisted_genre_keywords: vec![],
     };
 
-    let spotify_client_id = ask_question("Spotify client id (required): ", true)?;
-    let spotify_client_secret = ask_question(
-        "Spotify client secret (optional; leave blank to skip): ",
-        true,
-    )?;
-    let slack_bot_token = ask_question("Slack bot token (optional; leave blank to skip): ", false)?;
-    let channels = ask_question_multi(
-        "Slack channels (optional, comma separated; leave blank to skip): ",
-        false,
-    )?;
-    let whitelisted_genre_keywords = ask_question_multi(
-        "Whitelisted genre keywords (optional, comma separated; leave blank to skip): ",
-        false,
-    )?;
-    let blacklisted_genre_keywords = ask_question_multi(
-        "Blacklisted genre keywords (optional, comma separated; leave blank to skip): ",
-        false,
-    )?;
+    // let spotify_client_id = ask_question("Spotify client id (required): ", true)?;
+    // let spotify_client_secret = ask_question("Spotify client secret (required): ", true)?;
+    // let slack_bot_token = ask_question("Slack bot token (optional; leave blank to skip): ", false)?;
+    // let channels = ask_question_multi(
+    //     "Slack channels (optional, comma separated; leave blank to skip): ",
+    //     false,
+    // )?;
+    // let whitelisted_genre_keywords = ask_question_multi(
+    //     "Whitelisted genre keywords (optional, comma separated; leave blank to skip): ",
+    //     false,
+    // )?;
+    // let blacklisted_genre_keywords = ask_question_multi(
+    //     "Blacklisted genre keywords (optional, comma separated; leave blank to skip): ",
+    //     false,
+    // )?;
+
+    let spotify_client_id = std::env::var("SPOTIFY_CLIENT_ID").unwrap();
+    let spotify_client_secret = std::env::var("SPOTIFY_CLIENT_SECRET").unwrap();
+
+    let mut whitelisted_genre_keywords = Vec::new();
+    let mut blacklisted_genre_keywords = Vec::new();
+
+    whitelisted_genre_keywords.push("black metal".to_string());
+    blacklisted_genre_keywords.push("rock".to_string());
+    blacklisted_genre_keywords.push("heavy".to_string());
+    blacklisted_genre_keywords.push("hard".to_string());
+    blacklisted_genre_keywords.push("power".to_string());
+
+    let slack_bot_token = "".to_string();
+    let channels = vec![];
 
     config.slack_bot_token = slack_bot_token;
     config.slack_channels = channels;
@@ -123,15 +151,6 @@ pub fn setup_config() -> Result<Config, AppError> {
     config.spotify_client_secret = spotify_client_secret;
     config.whitelisted_genre_keywords = whitelisted_genre_keywords;
     config.blacklisted_genre_keywords = blacklisted_genre_keywords;
-
-    println!(
-        "Number of whitelisted entries: {}",
-        config.whitelisted_genre_keywords.len()
-    );
-    println!(
-        "Number of blacklisted entries: {}",
-        config.blacklisted_genre_keywords.len()
-    );
 
     Ok(config)
 }

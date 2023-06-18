@@ -1,10 +1,11 @@
+mod metallum;
 mod spotify;
 
-use crate::config::{Config, Release, SpotifyMetadata};
+use crate::config::{Config, MetallumMetadata, Release, SpotifyMetadata};
 use crate::release::spotify::Spotify;
 use crate::AppError;
 use chrono::prelude::{Local, NaiveDate, Utc};
-use log::debug;
+use log::{debug, info};
 use regex::Regex;
 use scraper::{Html, Selector};
 
@@ -102,7 +103,9 @@ fn parse_releases(html: String) -> Result<Vec<Release>, AppError> {
             album: String::from(album),
             label: label.replace("(", ""),
             spotify: None,
+            metallum: None,
             skip: false,
+            skip_reasons: vec![],
         };
 
         releases.push(release);
@@ -159,7 +162,7 @@ pub async fn enrich_with_spotify(
 
         if release.skip {
             debug!(
-                "Skipping artist lookup for artist '{}', album '{}'",
+                "Skipping spotify lookup for artist '{}', album '{}' - marked as 'skip'",
                 release.artist, release.album
             );
 
@@ -192,18 +195,79 @@ pub async fn enrich_with_spotify(
     Ok(())
 }
 
-pub fn set_skip(config: &mut Config) -> Vec<Release> {
+pub async fn enrich_with_metallum(releases: &mut Vec<Release>) -> Result<(), AppError> {
+    for release in releases {
+        if release.metallum.is_none() {
+            debug!(
+                "Skipping metallum lookup for artist '{}', album '{}' - already exists",
+                release.artist, release.album
+            );
+            continue;
+        }
+
+        if release.skip {
+            debug!(
+                "Skipping metallum lookup for artist '{}', album '{}' - marked as 'skip'",
+                release.artist, release.album
+            );
+        }
+
+        let metallum_info = metallum::get_artists(release.artist.as_str()).await?;
+
+        if metallum_info.len() == 0 {
+            release.skip = true;
+            release
+                .skip_reasons
+                .push(String::from("no metallum data available"));
+
+            continue;
+        }
+
+        if metallum_info.len() >= 1 {
+            release.metallum = Some(MetallumMetadata {
+                // TODO: Fill this out
+                url: "".to_string(),
+                description_short: "".to_string(),
+                description_long: "".to_string(),
+                country_origin: "".to_string(),
+                locations: vec![],
+                years_active: "".to_string(),
+                genres: vec![],
+                img_url: "".to_string(),
+                status: "".to_string(),
+            });
+
+            continue;
+        }
+    }
+
+    Ok(())
+}
+
+pub fn set_skip(config: &Config, releases_today: &mut Vec<Release>) -> Vec<Release> {
     let mut releases_match: Vec<Release> = Vec::new();
 
-    'main: for release in config.releases.iter_mut() {
+    'main: for release in releases_today.iter_mut() {
         // Only evaluate today's releases
         if release.date != Local::now().date_naive() {
             continue;
         }
 
-        // Skip if there is no spotify data
+        // // Skip if there is no spotify data
         if release.spotify.is_none() {
+            info!(
+                "Skipping release {} - no spotify data; spotify: {:?}",
+                release.album,
+                release.spotify.is_none()
+            );
+
+            println!("Spotify metadata: {:?}", release.spotify);
+
             release.skip = true;
+            release
+                .skip_reasons
+                .push(String::from("no spotify data available"));
+
             continue;
         }
 
@@ -212,12 +276,19 @@ pub fn set_skip(config: &mut Config) -> Vec<Release> {
         // Skip if followers too low
         if spotify_metadata.followers < 1000 {
             release.skip = true;
+            release
+                .skip_reasons
+                .push(String::from("follower count too low"));
+
             continue;
         }
 
         // Skip if there is no genre specification
         if spotify_metadata.genres.is_empty() {
             release.skip = true;
+            release
+                .skip_reasons
+                .push(String::from("no genres in spotify metadata"));
             continue;
         }
 
@@ -237,6 +308,11 @@ pub fn set_skip(config: &mut Config) -> Vec<Release> {
                     );
 
                     release.skip = true;
+                    release.skip_reasons.push(format!(
+                        "blacklisted genre keyword '{}' found in genre '{:?}'",
+                        blacklisted_genre, genre
+                    ));
+
                     continue 'main;
                 }
             }
@@ -266,6 +342,9 @@ pub fn merge_releases(all_releases: &mut Vec<Release>, todays_releases: &Vec<Rel
         for ar in &mut *all_releases {
             if tr.artist == ar.artist && tr.album == ar.album {
                 ar.spotify = tr.spotify.clone();
+                ar.metallum = tr.metallum.clone();
+                ar.skip = tr.skip;
+                ar.skip_reasons = tr.skip_reasons.clone();
             }
         }
     }

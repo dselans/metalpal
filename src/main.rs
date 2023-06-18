@@ -62,8 +62,13 @@ async fn main() {
         fatal_error(e.to_string())
     };
 
+    // Enrich today's releases with release.spotify metadata
+    // if let Err(e) = release::enrich_with_metallum(&mut releases_today).await {
+    //     fatal_error(e.to_string())
+    // };
+
     // Mark releases as skip that do not contain needed data or do not match our criteria
-    let releases_match = release::set_skip(&mut config);
+    let releases_match = release::set_skip(&config, &mut releases_today);
 
     // Merge today's releases with existing releases
     release::merge_releases(&mut config.releases, &releases_today);
