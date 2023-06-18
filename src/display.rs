@@ -47,8 +47,13 @@ pub fn display(releases_match: Vec<Release>, releases_today: Vec<Release>) {
         ]));
 
         table.add_row(Row::new(vec![
-            Cell::new("Spotify URL"),
-            Cell::new(spotify_metadata.url.as_str()),
+            Cell::new("Spotify ID"),
+            Cell::new(spotify_metadata.id.as_str()),
+        ]));
+
+        table.add_row(Row::new(vec![
+            Cell::new("Spotify Popularity"),
+            Cell::new(spotify_metadata.popularity.to_string().as_str()),
         ]));
 
         table.add_row(Row::new(vec![
