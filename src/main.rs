@@ -1,6 +1,10 @@
 mod config;
+mod display;
 mod error;
 mod release;
+
+extern crate prettytable;
+extern crate term;
 
 use crate::config::Config;
 use crate::error::AppError;
@@ -14,29 +18,6 @@ pub struct CLI {
     #[arg(short, long)]
     debug: bool,
 }
-
-// Logic
-//
-// 1. Load cnfig or setup
-//      -> If config does not exist, it's a first-run
-//          -> build config for first time
-//      -> If config exists, check last_update
-//
-// 2. If last_update is older than a week, re-fetch releases
-//
-// 3. Get releases that occur today
-//
-// 4. Enrich releases with release.spotify metadata
-//      -> if release.spotify data already there, skip
-//      -> release.spotify metadata: release.spotify artist URL, popularity
-//
-// 5. Enrich releases with metallum metadata
-//     -> if metallum data already there, skip
-//     -> metallum metadata: genre, country, year, metallum URL, description
-//
-// 6. Sort today's releases by popularity
-//
-// 7. Slack alert
 
 #[tokio::main]
 async fn main() {
@@ -70,13 +51,6 @@ async fn main() {
         fatal_error(e.to_string());
     }
 
-    // Nothing to do if there are no releases
-    if releases_today.len() == 0 {
-        exit(String::from("No releases today"));
-    } else {
-        info!("There are {} releases today!", releases_today.len()); // Q: Same intellij problem here
-    }
-
     // Enrich today's releases with release.spotify metadata
     if let Err(e) = release::enrich_with_spotify(
         config.spotify_client_id.clone(),
@@ -89,16 +63,18 @@ async fn main() {
     };
 
     // Mark releases as skip that do not contain needed data or do not match our criteria
-    release::set_skip(&mut config);
+    let releases_match = release::set_skip(&mut config);
 
     // Merge today's releases with existing releases
-    release::merge_releases(&mut config.releases, releases_today);
+    release::merge_releases(&mut config.releases, &releases_today);
 
     // Save again
     if let Err(e) = config::save_config(&config) {
         // Q: My IDE can't tell that to_string exists - why not?
         fatal_error(e.to_string());
     }
+
+    display::display(releases_match, releases_today);
 
     // // Enrich today's releases with metallum metadata
     // let releases_today = match release::enrich_with_metallum(releases_today) {

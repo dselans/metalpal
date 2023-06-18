@@ -4,7 +4,7 @@ use crate::config::{Config, Release, SpotifyMetadata};
 use crate::release::spotify::Spotify;
 use crate::AppError;
 use chrono::prelude::{Local, NaiveDate, Utc};
-use log::{debug, info, warn};
+use log::debug;
 use regex::Regex;
 use scraper::{Html, Selector};
 
@@ -147,7 +147,7 @@ pub async fn enrich_with_spotify(
     for release in releases {
         // Skip if there is already spotify data for artist/release
         if !release.spotify.is_none() {
-            info!(
+            debug!(
                 "Skipping artist lookup for artist '{}' - already exists",
                 release.artist
             );
@@ -158,7 +158,7 @@ pub async fn enrich_with_spotify(
         // Still need to skip stuff that is None AND has already been processed/reviewed/etc.
 
         if release.skip {
-            info!(
+            debug!(
                 "Skipping artist lookup for artist '{}', album '{}'",
                 release.artist, release.album
             );
@@ -192,7 +192,9 @@ pub async fn enrich_with_spotify(
     Ok(())
 }
 
-pub fn set_skip(config: &mut Config) {
+pub fn set_skip(config: &mut Config) -> Vec<Release> {
+    let mut releases_match: Vec<Release> = Vec::new();
+
     'main: for release in config.releases.iter_mut() {
         // Only evaluate today's releases
         if release.date != Local::now().date_naive() {
@@ -221,30 +223,49 @@ pub fn set_skip(config: &mut Config) {
 
         // Genres exist, skip anything in our black list
         for genre in &spotify_metadata.genres {
-            if config.whitelisted_genre_keywords.contains(genre) {
-                continue 'main;
+            debug!(
+                "Testing genres for band {} with genres {:?}",
+                release.artist, spotify_metadata.genres
+            );
+
+            // Q: This is super verbose - is there a better way to do this?
+            for blacklisted_genre in &config.blacklisted_genre_keywords {
+                if genre.contains(blacklisted_genre) {
+                    debug!(
+                        "Band {} with genre '{:?}' has a blacklisted genre keyword '{}' - skipping!",
+                        release.artist, genre, blacklisted_genre
+                    );
+
+                    release.skip = true;
+                    continue 'main;
+                }
             }
 
-            if config.blacklisted_genre_keywords.contains(genre) {
-                debug!(
-                    "Band {} has a blacklisted genre - skipping!",
-                    release.artist
-                );
+            // Same here - super verbose - how can we reduce this?
+            for whitelisted_genre in &config.whitelisted_genre_keywords {
+                if genre.contains(whitelisted_genre) {
+                    debug!(
+                        "Band {} with genre '{:?}' has a whitelisted genre keyword '{}' - adding!",
+                        release.artist, genre, whitelisted_genre
+                    );
 
-                release.skip = true;
-                continue 'main;
+                    continue 'main;
+                }
             }
         }
+
+        // If we get here, we have a release that we want to review
+        releases_match.push(release.clone());
     }
+
+    releases_match
 }
 
-pub fn merge_releases(all_releases: &mut Vec<Release>, todays_releases: Vec<Release>) {
+pub fn merge_releases(all_releases: &mut Vec<Release>, todays_releases: &Vec<Release>) {
     for tr in todays_releases {
         for ar in &mut *all_releases {
             if tr.artist == ar.artist && tr.album == ar.album {
-                debug!("Merging spotify data for {}", tr.artist);
                 ar.spotify = tr.spotify.clone();
-                ar.skip = tr.skip;
             }
         }
     }
