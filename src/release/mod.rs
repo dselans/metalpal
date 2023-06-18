@@ -197,20 +197,15 @@ pub async fn enrich_with_spotify(
 
 pub async fn enrich_with_metallum(releases: &mut Vec<Release>) -> Result<(), AppError> {
     for release in releases {
-        if release.metallum.is_none() {
-            debug!(
-                "Skipping metallum lookup for artist '{}', album '{}' - already exists",
-                release.artist, release.album
-            );
-            continue;
-        }
-
+        // This shouldn't really ever happen as we are only passing matching releases
         if release.skip {
             debug!(
                 "Skipping metallum lookup for artist '{}', album '{}' - marked as 'skip'",
                 release.artist, release.album
             );
         }
+
+        info!("Looking up metallum info for artist '{}'", release.artist);
 
         let metallum_info = metallum::get_artists(release.artist.as_str()).await?;
 
@@ -244,9 +239,7 @@ pub async fn enrich_with_metallum(releases: &mut Vec<Release>) -> Result<(), App
     Ok(())
 }
 
-pub fn set_skip(config: &Config, releases_today: &mut Vec<Release>) -> Vec<Release> {
-    let mut releases_match: Vec<Release> = Vec::new();
-
+pub fn set_skip_spotify(config: &Config, releases_today: &mut Vec<Release>) {
     'main: for release in releases_today.iter_mut() {
         // Only evaluate today's releases
         if release.date != Local::now().date_naive() {
@@ -329,12 +322,7 @@ pub fn set_skip(config: &Config, releases_today: &mut Vec<Release>) -> Vec<Relea
                 }
             }
         }
-
-        // If we get here, we have a release that we want to review
-        releases_match.push(release.clone());
     }
-
-    releases_match
 }
 
 pub fn merge_releases(all_releases: &mut Vec<Release>, todays_releases: &Vec<Release>) {

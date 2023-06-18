@@ -14,8 +14,15 @@ pub async fn get_artists(artist_name: &str) -> Result<Vec<MetallumMetadata>, App
     let response: MetallumSearchResponse = request.send().await?.json().await?;
 
     if response.aa_data.is_empty() {
+        info!("No artists found in metallum for artist {}", artist_name);
         return Ok(Vec::new());
     }
+
+    info!(
+        "Found {} artists in metallum for artist {}",
+        response.aa_data.len(),
+        artist_name
+    );
 
     for entry in response.aa_data {
         info!("Found artist: {:?}", entry.0);

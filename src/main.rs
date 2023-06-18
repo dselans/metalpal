@@ -62,13 +62,15 @@ async fn main() {
         fatal_error(e.to_string())
     };
 
-    // Enrich today's releases with release.spotify metadata
+    // Do spotify-based filtering
+    release::set_skip_spotify(&config, &mut releases_today);
+
+    // // Enrich matching releases with metallum metadata
     // if let Err(e) = release::enrich_with_metallum(&mut releases_today).await {
     //     fatal_error(e.to_string())
     // };
-
-    // Mark releases as skip that do not contain needed data or do not match our criteria
-    let releases_match = release::set_skip(&config, &mut releases_today);
+    //
+    // release::set_skip_metallum(&config, &mut releases_today);
 
     // Merge today's releases with existing releases
     release::merge_releases(&mut config.releases, &releases_today);
@@ -79,13 +81,7 @@ async fn main() {
         fatal_error(e.to_string());
     }
 
-    display::display(releases_match, releases_today);
-
-    // // Enrich today's releases with metallum metadata
-    // let releases_today = match release::enrich_with_metallum(releases_today) {
-    //     Ok(releases_today) => releases_today,
-    //     Err(e) => fatal_error(e),
-    // };
+    display::display(&releases_today);
 
     // TODO: Sort by popularity, genre, etc.
 

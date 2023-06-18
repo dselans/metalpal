@@ -2,19 +2,25 @@ use crate::config::Release;
 use log::info;
 use prettytable::{Cell, Row, Table};
 
-pub fn display(releases_match: Vec<Release>, releases_today: Vec<Release>) {
+pub fn display(releases_today: &Vec<Release>) {
     if releases_today.is_empty() {
         crate::exit("No releases_today today".to_string());
     }
 
+    let valid_releases = releases_today
+        .into_iter()
+        .filter(|r| !r.skip)
+        .collect::<Vec<&Release>>();
+
     info!(
         "There are '{}' releases today; out of those, '{}' look interesting!",
         releases_today.len(),
-        releases_match.len()
+        valid_releases.len(),
     );
 
-    let mut releases_match = releases_match.clone();
-    releases_match.sort_by(|a, b| {
+    let mut sorted_releases = valid_releases.clone();
+
+    sorted_releases.sort_by(|a, b| {
         b.spotify
             .clone()
             .unwrap()
@@ -25,7 +31,7 @@ pub fn display(releases_match: Vec<Release>, releases_today: Vec<Release>) {
     let mut iter = 1;
 
     // Display release in tables, sorted by follower count
-    for release in releases_match {
+    for release in sorted_releases {
         let mut table = Table::new();
 
         // Header
@@ -39,7 +45,7 @@ pub fn display(releases_match: Vec<Release>, releases_today: Vec<Release>) {
             Cell::new(header.as_str()).style_spec("bFgcH2")
         ]));
 
-        let spotify_metadata = release.spotify.unwrap();
+        let spotify_metadata = release.spotify.clone().unwrap();
 
         table.add_row(Row::new(vec![
             Cell::new("Genres"),
