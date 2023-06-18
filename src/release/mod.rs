@@ -148,22 +148,21 @@ pub async fn enrich_with_spotify(
     let spotify_client = Spotify::new(client_id.as_str(), client_secret.as_str()).await?;
 
     for release in releases {
-        // Skip if there is already spotify data for artist/release
-        if !release.spotify.is_none() {
+        // Skip entries that have already been processed/reviewed/etc.
+        if release.skip {
             debug!(
-                "Skipping artist lookup for artist '{}' - already exists",
-                release.artist
+                "Skipping spotify lookup for artist '{}', album '{}' - marked as 'skip'",
+                release.artist, release.album
             );
 
             continue;
         }
 
-        // Still need to skip stuff that is None AND has already been processed/reviewed/etc.
-
-        if release.skip {
+        // Skip if there is already spotify data for artist/release
+        if !release.spotify.is_none() {
             debug!(
-                "Skipping spotify lookup for artist '{}', album '{}' - marked as 'skip'",
-                release.artist, release.album
+                "Skipping artist lookup for artist '{}' - already exists",
+                release.artist
             );
 
             continue;
@@ -241,6 +240,11 @@ pub async fn enrich_with_metallum(releases: &mut Vec<Release>) -> Result<(), App
 
 pub fn set_skip_spotify(config: &Config, releases_today: &mut Vec<Release>) {
     'main: for release in releases_today.iter_mut() {
+        // No need to review/set skip if already set as skipped
+        if release.skip {
+            continue;
+        }
+
         // Only evaluate today's releases
         if release.date != Local::now().date_naive() {
             continue;
