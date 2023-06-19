@@ -1,7 +1,7 @@
 mod metallum;
 mod spotify;
 
-use crate::config::{Config, MetallumMetadata, Release, SpotifyMetadata};
+use crate::config::{Config, MetallumAristInfo, Release, SpotifyArtistInfo};
 use crate::release::spotify::Spotify;
 use crate::AppError;
 use chrono::prelude::{Local, NaiveDate, Utc};
@@ -179,7 +179,7 @@ pub async fn enrich_with_spotify(
 
         // Always grab only the top-level artist
         if spotify_artist_info.len() >= 1 {
-            release.spotify = Some(SpotifyMetadata {
+            release.spotify = Some(SpotifyArtistInfo {
                 id: spotify_artist_info[0].id.to_string(),
                 url: spotify_artist_info[0].href.clone(),
                 genres: spotify_artist_info[0].genres.clone(),
@@ -202,37 +202,40 @@ pub async fn enrich_with_metallum(releases: &mut Vec<Release>) -> Result<(), App
                 "Skipping metallum lookup for artist '{}', album '{}' - marked as 'skip'",
                 release.artist, release.album
             );
+
+            continue;
         }
 
         debug!("Looking up metallum info for artist '{}'", release.artist);
 
-        let metallum_info = metallum::get_artists(release.artist.as_str()).await?;
+        let metallum_artists = metallum::get_artists(release.artist.as_str()).await?;
 
-        if metallum_info.len() == 0 {
-            release.skip = true;
-            release
-                .skip_reasons
-                .push(String::from("no metallum data available"));
-
-            continue;
-        }
-
-        if metallum_info.len() >= 1 {
-            release.metallum = Some(MetallumMetadata {
-                // TODO: Fill this out
-                url: "".to_string(),
-                description_short: "".to_string(),
-                description_long: "".to_string(),
-                country_origin: "".to_string(),
-                locations: vec![],
-                years_active: "".to_string(),
-                genres: vec![],
-                img_url: "".to_string(),
-                status: "".to_string(),
-            });
-
-            continue;
-        }
+        // if metallum_artists.len() == 0 {
+        //     release.skip = true;
+        //     release
+        //         .skip_reasons
+        //         .push(String::from("no metallum data available"));
+        //
+        //     continue;
+        // }
+        //
+        // if metallum_artists.len() >= 1 {
+        //     // Use the first hit for now - good enough
+        //     release.metallum = Some(MetallumAristInfo {
+        //         // TODO: Fill this out
+        //         url: "".to_string(),
+        //         description_short: "".to_string(),
+        //         description_long: "".to_string(),
+        //         country_origin: "".to_string(),
+        //         locations: vec![],
+        //         years_active: "".to_string(),
+        //         genres: vec![],
+        //         img_url: "".to_string(),
+        //         status: "".to_string(),
+        //     });
+        //
+        //     continue;
+        // }
     }
 
     Ok(())

@@ -66,9 +66,9 @@ async fn main() {
     release::set_skip_spotify(&config, &mut releases_today);
 
     // // Enrich matching releases with metallum metadata
-    // if let Err(e) = release::enrich_with_metallum(&mut releases_today).await {
-    //     fatal_error(e.to_string())
-    // };
+    if let Err(e) = release::enrich_with_metallum(&mut releases_today).await {
+        fatal_error(e.to_string())
+    };
     //
     // release::set_skip_metallum(&config, &mut releases_today);
 

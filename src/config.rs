@@ -31,12 +31,12 @@ pub struct Release {
     #[serde(default)]
     pub skip: bool,
     pub skip_reasons: Vec<String>,
-    pub spotify: Option<SpotifyMetadata>,
-    pub metallum: Option<MetallumMetadata>,
+    pub spotify: Option<SpotifyArtistInfo>,
+    pub metallum: Option<MetallumAristInfo>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
-pub struct SpotifyMetadata {
+pub struct SpotifyArtistInfo {
     pub id: String,
     pub url: String,
     pub genres: Vec<String>,
@@ -45,7 +45,7 @@ pub struct SpotifyMetadata {
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
-pub struct MetallumMetadata {
+pub struct MetallumAristInfo {
     pub url: String,
     pub description_short: String,
     pub description_long: String,
