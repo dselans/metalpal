@@ -3,6 +3,7 @@ use crate::AppError;
 use log::{debug, error, info, warn};
 use reqwest::Client;
 use scraper::html::Select;
+use scraper::Node::Element;
 use scraper::{Html, Selector};
 use std::thread::current;
 
@@ -63,9 +64,6 @@ impl Metallum {
                 "Figured out URL for artist '{}': {}",
                 artist_name, artist_url
             );
-
-            // temporary
-            let artist_url = "https://www.metal-archives.com/bands/Burzum/88";
 
             match self.get_artist_info(&artist_name, &artist_url).await {
                 Ok(artist_info) => {
@@ -150,7 +148,7 @@ impl Metallum {
         let formed_in = &vector[3];
         let genre = &vector[4];
         let lyrical_themes = &vector[5];
-        let last_label = &vector[6];
+        let mut last_label = &vector[6];
         let years_active = &vector[7];
 
         // Origin is a link
@@ -161,17 +159,50 @@ impl Metallum {
             .inner_html();
 
         // Label is a link as well
-        let last_label = Html::parse_fragment(&last_label)
+
+        let last_label = match Html::parse_fragment(&last_label)
             .select(&Selector::parse("a")?)
             .next()
-            .unwrap()
-            .inner_html();
+        {
+            Some(label) => label.inner_html(),
+            None => "N/A".to_string(),
+        };
+
+        // Get band description
+        let band_bio_selector = Selector::parse("div.band_comment")?;
+        let fragment =
+            document
+                .select(&band_bio_selector)
+                .next()
+                .ok_or(AppError::GenericError {
+                    0: "Could not find band description".to_string(),
+                })?;
+
+        let description_short = voca_rs::strip::strip_tags(&fragment.inner_html());
+
+        // Get img URL
+        let band_img_selector = Selector::parse("#band_sidebar > div.band_img > a")?;
+        let fragment =
+            document
+                .select(&band_img_selector)
+                .next()
+                .ok_or(AppError::GenericError {
+                    0: "Could not find band img".to_string(),
+                })?;
+
+        let mut img_url = "".to_string();
+
+        if let Some(url) = fragment.value().attr("href") {
+            img_url = url.to_string();
+        }
+
+        warn!("Finished with artist {}", artist_name);
 
         Ok(MetallumArtistInfo {
             name: artist_name.to_string(),
             country_origin: country_origin.to_string(),
             url: artist_url.to_string(),
-            description_short: "".to_string(),
+            description_short: description_short,
             locations: location.to_string(),
             status: status.to_string(),
             formed_in: formed_in.to_string(),
@@ -180,7 +211,7 @@ impl Metallum {
             last_label: last_label.to_string(),
             years_active: years_active.to_string(),
             description_long: "".to_string(),
-            img_url: "".to_string(),
+            img_url: img_url,
         })
     }
 }

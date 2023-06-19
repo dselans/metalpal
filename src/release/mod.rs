@@ -213,32 +213,21 @@ pub async fn enrich_with_metallum(releases: &mut Vec<Release>) -> Result<(), App
 
         let metallum_artists = metallum.get_artists(release.artist.as_str()).await?;
 
-        // if metallum_artists.len() == 0 {
-        //     release.skip = true;
-        //     release
-        //         .skip_reasons
-        //         .push(String::from("no metallum data available"));
-        //
-        //     continue;
-        // }
-        //
-        // if metallum_artists.len() >= 1 {
-        //     // Use the first hit for now - good enough
-        //     release.metallum = Some(MetallumAristInfo {
-        //         // TODO: Fill this out
-        //         url: "".to_string(),
-        //         description_short: "".to_string(),
-        //         description_long: "".to_string(),
-        //         country_origin: "".to_string(),
-        //         locations: vec![],
-        //         years_active: "".to_string(),
-        //         genres: vec![],
-        //         img_url: "".to_string(),
-        //         status: "".to_string(),
-        //     });
-        //
-        //     continue;
-        // }
+        if metallum_artists.len() == 0 {
+            release.skip = true;
+            release
+                .skip_reasons
+                .push(String::from("no metallum data available"));
+
+            continue;
+        }
+
+        if metallum_artists.len() >= 1 {
+            // Use the first hit for now - good enough
+            release.metallum = Some(metallum_artists[0].clone());
+
+            continue;
+        }
     }
 
     Ok(())
