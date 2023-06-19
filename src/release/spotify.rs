@@ -42,7 +42,7 @@ impl Spotify {
         Ok(self.filter_artists(artist_name, &artists))
     }
 
-    /// Reduce the number of artist results
+    /// Improve the results by reducing the number of bad matches
     fn filter_artists(&self, artist_name: &str, artists: &Page<FullArtist>) -> Vec<FullArtist> {
         let mut filtered_artists: Vec<FullArtist> = Vec::new();
 

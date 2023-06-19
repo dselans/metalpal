@@ -32,7 +32,7 @@ pub struct Release {
     pub skip: bool,
     pub skip_reasons: Vec<String>,
     pub spotify: Option<SpotifyArtistInfo>,
-    pub metallum: Option<MetallumAristInfo>,
+    pub metallum: Option<MetallumArtistInfo>,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
@@ -45,16 +45,20 @@ pub struct SpotifyArtistInfo {
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
-pub struct MetallumAristInfo {
+pub struct MetallumArtistInfo {
+    pub name: String,
     pub url: String,
     pub description_short: String,
     pub description_long: String,
     pub country_origin: String,
-    pub locations: Vec<String>,
+    pub locations: String,
     pub years_active: String,
-    pub genres: Vec<String>,
+    pub formed_in: String,
+    pub genre: String,
+    pub themes: String,
     pub img_url: String,
     pub status: String,
+    pub last_label: String,
 }
 
 type Genre = String;

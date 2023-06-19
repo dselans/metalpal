@@ -1,11 +1,12 @@
 mod metallum;
 mod spotify;
 
-use crate::config::{Config, MetallumAristInfo, Release, SpotifyArtistInfo};
+use crate::config::{Config, MetallumArtistInfo, Release, SpotifyArtistInfo};
 use crate::release::spotify::Spotify;
 use crate::AppError;
 use chrono::prelude::{Local, NaiveDate, Utc};
-use log::{debug, info};
+use log::{debug, info, warn};
+use metallum::Metallum;
 use regex::Regex;
 use scraper::{Html, Selector};
 
@@ -195,10 +196,12 @@ pub async fn enrich_with_spotify(
 }
 
 pub async fn enrich_with_metallum(releases: &mut Vec<Release>) -> Result<(), AppError> {
+    let metallum = Metallum::new()?;
+
     for release in releases {
         // This shouldn't really ever happen as we are only passing matching releases
         if release.skip {
-            debug!(
+            warn!(
                 "Skipping metallum lookup for artist '{}', album '{}' - marked as 'skip'",
                 release.artist, release.album
             );
@@ -206,9 +209,9 @@ pub async fn enrich_with_metallum(releases: &mut Vec<Release>) -> Result<(), App
             continue;
         }
 
-        debug!("Looking up metallum info for artist '{}'", release.artist);
+        warn!("Looking up metallum info for artist '{}'", release.artist);
 
-        let metallum_artists = metallum::get_artists(release.artist.as_str()).await?;
+        let metallum_artists = metallum.get_artists(release.artist.as_str()).await?;
 
         // if metallum_artists.len() == 0 {
         //     release.skip = true;
