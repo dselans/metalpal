@@ -3,6 +3,7 @@ mod display;
 mod error;
 mod release;
 
+// Q: What's the diff between 'extern' and 'use'
 extern crate prettytable;
 extern crate term;
 
@@ -11,55 +12,6 @@ use crate::error::AppError;
 use clap::Parser;
 use log::{debug, error, info};
 use std::env;
-
-// Q: This needs to be in main.rs for some reason, otherwise it panics; how can
-// I move this into config.rs?
-
-#[derive(Parser, Debug)]
-pub struct CLI {
-    /// Enable debug output
-    #[arg(short, long, env = "METALPAL_DEBUG")]
-    debug: bool,
-
-    #[arg(
-        long,
-        env = "METALPAL_SPOTIFY_CLIENT_ID",
-        default_value = "",
-        required_unless_present = "interactive"
-    )]
-    spotify_client_id: String,
-
-    #[arg(
-        long,
-        env = "METALPAL_SPOTIFY_CLIENT_SECRET",
-        default_value = "",
-        required_unless_present = "interactive"
-    )]
-    spotify_client_secret: String,
-
-    #[arg(long, env = "METALPAL_SLACK_TOKEN", default_value = "")]
-    slack_token: String,
-
-    #[arg(long, env = "METALPAL_SLACK_CHANNELS", default_value = "")]
-    slack_channels: Vec<String>,
-
-    #[arg(long, env = "METALPAL_WHITELISTED_GENRE_KEYWORDS")]
-    whitelisted_genre_keywords: Vec<String>,
-
-    #[arg(long, env = "METALPAL_BLACKLISTED_GENRE_KEYWORDS")]
-    blacklisted_genre_keywords: Vec<String>,
-
-    #[arg(
-        long,
-        short,
-        help = "Path to metalpal config file",
-        default_value = ".metalpal.json"
-    )]
-    config_path: String,
-
-    #[arg(long, short, help = "Run in interactive mode")]
-    interactive: bool,
-}
 
 #[tokio::main]
 async fn main() {
@@ -128,8 +80,8 @@ async fn main() {
     // TODO: Send slack alerts
 }
 
-fn setup() -> CLI {
-    let cli = CLI::parse();
+fn setup() -> config::CLI {
+    let cli = config::CLI::parse();
 
     if cli.debug {
         env::set_var("RUST_LOG", "metalpal=debug");
@@ -144,7 +96,7 @@ fn setup() -> CLI {
 
 // Q: Should I return a String for errors or my own custom error?
 // My guess: implement Display trait on my custom type so it can be println!'d. Is this correct?
-fn load_or_setup_config(cli: &CLI) -> Result<Config, AppError> {
+fn load_or_setup_config(cli: &config::CLI) -> Result<Config, AppError> {
     println!("Our CLI: {:?}", cli);
 
     match config::load_config() {

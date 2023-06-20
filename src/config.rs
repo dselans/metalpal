@@ -1,4 +1,5 @@
 use chrono::prelude::NaiveDate;
+use clap::Parser;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io;
@@ -7,6 +8,54 @@ use std::io::Write;
 use crate::error::AppError;
 
 const CONFIG_FILE: &str = ".metalpal.json";
+
+// Q: This needs to be in main.rs for some reason, otherwise it panics; how can
+// I move this into config.rs?
+#[derive(Parser, Debug)]
+pub struct CLI {
+    /// Enable debug output
+    #[arg(short, long, env = "METALPAL_DEBUG")]
+    pub debug: bool,
+
+    #[arg(
+        long,
+        env = "METALPAL_SPOTIFY_CLIENT_ID",
+        default_value = "",
+        required_unless_present = "interactive"
+    )]
+    pub spotify_client_id: String,
+
+    #[arg(
+        long,
+        env = "METALPAL_SPOTIFY_CLIENT_SECRET",
+        default_value = "",
+        required_unless_present = "interactive"
+    )]
+    pub spotify_client_secret: String,
+
+    #[arg(long, env = "METALPAL_SLACK_TOKEN", default_value = "")]
+    pub slack_token: String,
+
+    #[arg(long, env = "METALPAL_SLACK_CHANNELS", default_value = "")]
+    pub slack_channels: Vec<String>,
+
+    #[arg(long, env = "METALPAL_WHITELISTED_GENRE_KEYWORDS")]
+    pub whitelisted_genre_keywords: Vec<String>,
+
+    #[arg(long, env = "METALPAL_BLACKLISTED_GENRE_KEYWORDS")]
+    pub blacklisted_genre_keywords: Vec<String>,
+
+    #[arg(
+        long,
+        short,
+        help = "Path to metalpal config file",
+        default_value = ".metalpal.json"
+    )]
+    pub config_path: String,
+
+    #[arg(long, short, help = "Run in interactive mode")]
+    pub interactive: bool,
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Config {
@@ -119,7 +168,7 @@ pub fn load_config() -> Result<Config, AppError> {
 }
 
 // Interactive setup
-pub fn setup_config(cli: &crate::CLI) -> Result<Config, AppError> {
+pub fn setup_config(cli: &CLI) -> Result<Config, AppError> {
     if cli.interactive {
         setup_interactive()?;
     }
@@ -127,7 +176,7 @@ pub fn setup_config(cli: &crate::CLI) -> Result<Config, AppError> {
     return setup_cli(cli);
 }
 
-pub fn setup_cli(cli: &crate::CLI) -> Result<Config, AppError> {
+pub fn setup_cli(cli: &CLI) -> Result<Config, AppError> {
     Ok(Config {
         full_path: cli.config_path.clone(),
         last_update: Default::default(),
