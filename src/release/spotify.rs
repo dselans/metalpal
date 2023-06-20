@@ -1,5 +1,5 @@
 use crate::AppError;
-use log::debug;
+use log::{debug, info};
 use rspotify::model::{Page, SearchResult};
 use rspotify::{model::FullArtist, model::SearchType, prelude::*, ClientCredsSpotify, Credentials};
 
@@ -23,8 +23,6 @@ impl Spotify {
     }
 
     pub async fn get_artists(&self, artist_name: &str) -> Result<Vec<FullArtist>, AppError> {
-        debug!("Looking up artist info on spotify for '{}'", artist_name);
-
         let search_result = self
             .client
             .search(artist_name, SearchType::Artist, None, None, Some(10), None)
@@ -49,7 +47,9 @@ impl Spotify {
         // Spotify returns artists in no particular order - we want to inspect
         // only the top artists.
         let mut artists = artists.items.clone();
-        artists.sort_by(|a, b| b.followers.total.cmp(&a.followers.total));
+
+        // Important to sort_by_key() instead of sort_by() otherwise you get funky results. Why?
+        artists.sort_by_key(|a| a.followers.total);
 
         'main: for artist in artists {
             // Max 3 artists in response

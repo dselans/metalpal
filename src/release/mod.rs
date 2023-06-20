@@ -170,8 +170,6 @@ pub async fn enrich_with_spotify(
         }
 
         // Fetch release.spotify data here
-        debug!("Looking up artist info for: {}", release.artist);
-
         let spotify_artist_info = spotify_client.get_artists(release.artist.as_str()).await?;
 
         if spotify_artist_info.len() == 0 {
