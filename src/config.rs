@@ -1,9 +1,8 @@
-use chrono::prelude::{NaiveDate, Utc};
+use chrono::prelude::NaiveDate;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::io;
 use std::io::Write;
-use std::ops::Sub;
 
 use crate::error::AppError;
 
@@ -71,6 +70,22 @@ pub struct MetallumSearchResponse {
     pub aa_data: Vec<(Artist, Genre, Country)>,
 }
 
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            full_path: "".to_string(),
+            last_update: Default::default(),
+            releases: vec![],
+            slack_channels: vec![],
+            slack_bot_token: "".to_string(),
+            spotify_client_id: "".to_string(),
+            spotify_client_secret: "".to_string(),
+            whitelisted_genre_keywords: vec![],
+            blacklisted_genre_keywords: vec![],
+        }
+    }
+}
+
 pub fn full_path() -> Result<String, AppError> {
     let home_dir_opt = home::home_dir();
     let home_dir = match home_dir_opt {
@@ -104,57 +119,48 @@ pub fn load_config() -> Result<Config, AppError> {
 }
 
 // Interactive setup
-pub fn setup_config() -> Result<Config, AppError> {
-    // Q: There are no zero values (or nil/null) - what is the idiomatic way to instantiate a struct with default values?
-    let mut config = Config {
-        full_path: full_path()?,
-        last_update: Utc::now().sub(chrono::Duration::days(100)), // Default to force update
-        releases: Vec::new(),
-        slack_channels: vec![],
-        slack_bot_token: "".to_string(),
-        spotify_client_id: "".to_string(),
-        spotify_client_secret: "".to_string(),
-        whitelisted_genre_keywords: vec![],
-        blacklisted_genre_keywords: vec![],
-    };
+pub fn setup_config(cli: &crate::CLI) -> Result<Config, AppError> {
+    if cli.interactive {
+        setup_interactive()?;
+    }
 
-    let spotify_client_id = ask_question("Spotify client id (required): ", true)?;
-    let spotify_client_secret = ask_question("Spotify client secret (required): ", true)?;
-    let slack_bot_token = ask_question("Slack bot token (optional; leave blank to skip): ", false)?;
-    let channels = ask_question_multi(
+    return setup_cli(cli);
+}
+
+pub fn setup_cli(cli: &crate::CLI) -> Result<Config, AppError> {
+    Ok(Config {
+        full_path: cli.config_path.clone(),
+        last_update: Default::default(),
+        releases: vec![],
+        slack_channels: cli.slack_channels.clone(),
+        slack_bot_token: cli.slack_token.clone(),
+        spotify_client_id: cli.spotify_client_id.clone(),
+        spotify_client_secret: cli.spotify_client_secret.clone(),
+        whitelisted_genre_keywords: cli.whitelisted_genre_keywords.clone(),
+        blacklisted_genre_keywords: cli.blacklisted_genre_keywords.clone(),
+    })
+}
+
+pub fn setup_interactive() -> Result<Config, AppError> {
+    // Q: There are no zero values (or nil/null) - what is the idiomatic way to instantiate a struct with default values?
+    let mut config = Config::default();
+
+    config.spotify_client_id = ask_question("Spotify client id (required): ", true)?;
+    config.spotify_client_secret = ask_question("Spotify client secret (required): ", true)?;
+    config.slack_bot_token =
+        ask_question("Slack bot token (optional; leave blank to skip): ", false)?;
+    config.slack_channels = ask_question_multi(
         "Slack channels (optional, comma separated; leave blank to skip): ",
         false,
     )?;
-    let whitelisted_genre_keywords = ask_question_multi(
+    config.whitelisted_genre_keywords = ask_question_multi(
         "Whitelisted genre keywords (optional, comma separated; leave blank to skip): ",
         false,
     )?;
-    let blacklisted_genre_keywords = ask_question_multi(
+    config.blacklisted_genre_keywords = ask_question_multi(
         "Blacklisted genre keywords (optional, comma separated; leave blank to skip): ",
         false,
     )?;
-
-    // let spotify_client_id = std::env::var("SPOTIFY_CLIENT_ID").unwrap();
-    // let spotify_client_secret = std::env::var("SPOTIFY_CLIENT_SECRET").unwrap();
-    //
-    // let mut whitelisted_genre_keywords = Vec::new();
-    // let mut blacklisted_genre_keywords = Vec::new();
-    //
-    // whitelisted_genre_keywords.push("black metal".to_string());
-    // blacklisted_genre_keywords.push("rock".to_string());
-    // blacklisted_genre_keywords.push("heavy".to_string());
-    // blacklisted_genre_keywords.push("hard".to_string());
-    // blacklisted_genre_keywords.push("power".to_string());
-    //
-    // let slack_bot_token = "".to_string();
-    // let channels = vec![];
-
-    config.slack_bot_token = slack_bot_token;
-    config.slack_channels = channels;
-    config.spotify_client_id = spotify_client_id;
-    config.spotify_client_secret = spotify_client_secret;
-    config.whitelisted_genre_keywords = whitelisted_genre_keywords;
-    config.blacklisted_genre_keywords = blacklisted_genre_keywords;
 
     Ok(config)
 }

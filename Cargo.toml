@@ -18,7 +18,7 @@ tokio = { version = "1", features = ["full"] }
 env_logger = "0.10.0"
 log = "0.4.19"
 thiserror = "1.0.40"
-clap = { version = "4.3.4", features = ["derive"] }
+clap = { version = "4.3.4", features = ["derive", "env"] }
 prettytable-rs = "^0.10"
 term = "0.7.0"
 voca_rs = "1.15.2"
