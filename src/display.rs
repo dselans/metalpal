@@ -45,10 +45,27 @@ pub fn display(releases_today: &Vec<Release>) {
             Cell::new(header.as_str()).style_spec("bFgcH2")
         ]));
 
+        // unwrap()'s are fine because we non-skipped entries have both
         let spotify_metadata = release.spotify.clone().unwrap();
+        let metallum_metadata = release.metallum.clone().unwrap();
 
         table.add_row(Row::new(vec![
-            Cell::new("Genres"),
+            Cell::new("Metallum URL"),
+            Cell::new(metallum_metadata.url.as_str()),
+        ]));
+
+        table.add_row(Row::new(vec![
+            Cell::new("Metallum Genre"),
+            Cell::new(metallum_metadata.genre.as_str()),
+        ]));
+
+        table.add_row(Row::new(vec![
+            Cell::new("Metallum Origin Country"),
+            Cell::new(metallum_metadata.country_origin.as_str()),
+        ]));
+
+        table.add_row(Row::new(vec![
+            Cell::new("Spotify Genres"),
             Cell::new(spotify_metadata.genres.join(", ").as_str()),
         ]));
 

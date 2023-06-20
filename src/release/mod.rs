@@ -1,11 +1,11 @@
 mod metallum;
 mod spotify;
 
-use crate::config::{Config, MetallumArtistInfo, Release, SpotifyArtistInfo};
+use crate::config::{Config, Release, SpotifyArtistInfo};
 use crate::release::spotify::Spotify;
 use crate::AppError;
 use chrono::prelude::{Local, NaiveDate, Utc};
-use log::{debug, info, warn};
+use log::{debug, info};
 use metallum::Metallum;
 use regex::Regex;
 use scraper::{Html, Selector};
@@ -199,9 +199,11 @@ pub async fn enrich_with_metallum(releases: &mut Vec<Release>) -> Result<(), App
     let metallum = Metallum::new()?;
 
     for release in releases {
+        debug!("Evaluating release: {:#?}", release);
+
         // This shouldn't really ever happen as we are only passing matching releases
         if release.skip {
-            warn!(
+            debug!(
                 "Skipping metallum lookup for artist '{}', album '{}' - marked as 'skip'",
                 release.artist, release.album
             );
@@ -209,7 +211,17 @@ pub async fn enrich_with_metallum(releases: &mut Vec<Release>) -> Result<(), App
             continue;
         }
 
-        warn!("Looking up metallum info for artist '{}'", release.artist);
+        // No need to perform additional lookup if metallum entry already exists
+        if release.metallum.is_some() {
+            debug!(
+                "Skipping metallum lookup for artist '{}', album '{}' - already exists",
+                release.artist, release.album
+            );
+
+            continue;
+        }
+
+        debug!("Looking up metallum info for artist '{}'", release.artist);
 
         let metallum_artists = metallum.get_artists(release.artist.as_str()).await?;
 
@@ -319,6 +331,80 @@ pub fn set_skip_spotify(config: &Config, releases_today: &mut Vec<Release>) {
 
                     continue 'main;
                 }
+            }
+        }
+    }
+}
+
+pub fn set_skip_metallum(config: &Config, releases_today: &mut Vec<Release>) {
+    for release in releases_today.iter_mut() {
+        // No need to review/set skip if already set as skipped
+        if release.skip {
+            continue;
+        }
+
+        // Only evaluate today's releases
+        if release.date != Local::now().date_naive() {
+            continue;
+        }
+
+        let metallum_metadata;
+
+        match release.metallum {
+            Some(ref m) => metallum_metadata = m,
+            None => {
+                release.skip = true;
+                release
+                    .skip_reasons
+                    .push(String::from("no metallum data available"));
+
+                continue;
+            }
+        }
+
+        // Metallum exists; skip if genres is empty though
+        if metallum_metadata.genre.is_empty() {
+            release.skip = true;
+            release
+                .skip_reasons
+                .push(String::from("no genres in metallum metadata"));
+
+            continue;
+        }
+
+        // Whitelist check
+        for w_keyword in &config.whitelisted_genre_keywords {
+            if metallum_metadata
+                .genre
+                .to_lowercase()
+                .contains(w_keyword.as_str())
+            {
+                debug!(
+                    "Band '{}' has whitelisted genre keyword '{}' - NOT skipping!",
+                    release.artist, w_keyword
+                );
+                continue;
+            }
+        }
+
+        // Blacklist check
+        for b_keyword in &config.blacklisted_genre_keywords {
+            if metallum_metadata
+                .genre
+                .to_lowercase()
+                .contains(b_keyword.as_str())
+            {
+                debug!(
+                    "Band '{}' has blacklisted genre keyword '{}' - skipping!",
+                    release.artist, b_keyword
+                );
+                release.skip = true;
+                release.skip_reasons.push(format!(
+                    "blacklisted genre keyword '{}' found in metallum genre '{:?}'",
+                    b_keyword, metallum_metadata.genre
+                ));
+
+                continue;
             }
         }
     }

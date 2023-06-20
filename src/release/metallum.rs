@@ -1,11 +1,8 @@
 use crate::config::{MetallumArtistInfo, MetallumSearchResponse};
 use crate::AppError;
-use log::{debug, error, info, warn};
+use log::{debug, error};
 use reqwest::Client;
-use scraper::html::Select;
-use scraper::Node::Element;
 use scraper::{Html, Selector};
-use std::thread::current;
 
 const SEARCH_URL: &str = "https://www.metal-archives.com/search/ajax-band-search";
 
@@ -50,7 +47,8 @@ impl Metallum {
                 artist.0, artist_name
             );
 
-            let mut artist_url = "".to_string();
+            // Q: Is it normal to create a variable binding and then set it later?
+            let artist_url;
 
             if let Some(url) = get_artist_url(&artist.0) {
                 debug!("Found artist URL: {}", url);
@@ -90,7 +88,7 @@ impl Metallum {
         artist_name: &str,
         artist_url: &str,
     ) -> Result<MetallumArtistInfo, AppError> {
-        warn!("Looking up artist url: {}", artist_url);
+        debug!("Looking up artist url: {}", artist_url);
 
         let resp = reqwest::get(artist_url).await?;
 
@@ -148,28 +146,18 @@ impl Metallum {
         let formed_in = &vector[3];
         let genre = &vector[4];
         let lyrical_themes = &vector[5];
-        let mut last_label = &vector[6];
+        let last_label = &vector[6];
         let years_active = &vector[7];
 
         // Origin is a link
-        let country_origin = Html::parse_fragment(&country_origin)
-            .select(&Selector::parse("a")?)
-            .next()
-            .unwrap()
-            .inner_html();
+        let country_origin = parse_link(&country_origin, "N/A")?;
 
         // Label is a link as well
-
-        let last_label = match Html::parse_fragment(&last_label)
-            .select(&Selector::parse("a")?)
-            .next()
-        {
-            Some(label) => label.inner_html(),
-            None => "N/A".to_string(),
-        };
+        let last_label = parse_link(&last_label, "N/A")?;
 
         // Get band description
         let band_bio_selector = Selector::parse("div.band_comment")?;
+
         let fragment =
             document
                 .select(&band_bio_selector)
@@ -196,13 +184,13 @@ impl Metallum {
             img_url = url.to_string();
         }
 
-        warn!("Finished with artist {}", artist_name);
+        debug!("Finished with artist {}", artist_name);
 
         Ok(MetallumArtistInfo {
             name: artist_name.to_string(),
             country_origin: country_origin.to_string(),
             url: artist_url.to_string(),
-            description_short: description_short,
+            description_short,
             locations: location.to_string(),
             status: status.to_string(),
             formed_in: formed_in.to_string(),
@@ -211,7 +199,7 @@ impl Metallum {
             last_label: last_label.to_string(),
             years_active: years_active.to_string(),
             description_long: "".to_string(),
-            img_url: img_url,
+            img_url,
         })
     }
 }
@@ -221,4 +209,14 @@ fn get_artist_url(html: &str) -> Option<String> {
 
     // Beginning of line is <a href=\"
     Some(html[9..end].to_string())
+}
+
+fn parse_link(input: &str, default: &str) -> Result<String, AppError> {
+    match Html::parse_fragment(&input)
+        .select(&Selector::parse("a")?)
+        .next()
+    {
+        Some(parsed) => Ok(parsed.inner_html()),
+        None => Ok(default.to_string()),
+    }
 }

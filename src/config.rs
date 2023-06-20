@@ -68,7 +68,7 @@ type Artist = String;
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct MetallumSearchResponse {
-    pub aa_data: Vec<(Artist, Genre, Artist)>,
+    pub aa_data: Vec<(Artist, Genre, Country)>,
 }
 
 pub fn full_path() -> Result<String, AppError> {

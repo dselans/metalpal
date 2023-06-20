@@ -69,8 +69,8 @@ async fn main() {
     if let Err(e) = release::enrich_with_metallum(&mut releases_today).await {
         fatal_error(e.to_string())
     };
-    //
-    // release::set_skip_metallum(&config, &mut releases_today);
+
+    release::set_skip_metallum(&config, &mut releases_today);
 
     // Merge today's releases with existing releases
     release::merge_releases(&mut config.releases, &releases_today);
