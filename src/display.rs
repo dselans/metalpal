@@ -13,7 +13,7 @@ pub fn display(releases_today: &Vec<Release>) {
         .collect::<Vec<&Release>>();
 
     info!(
-        "There are '{}' releases today; out of those, '{}' look interesting!",
+        "There are '{}' releases today; out of those, '{}' look interesting!\n",
         releases_today.len(),
         valid_releases.len(),
     );

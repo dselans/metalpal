@@ -97,8 +97,6 @@ fn setup() -> config::CLI {
 // Q: Should I return a String for errors or my own custom error?
 // My guess: implement Display trait on my custom type so it can be println!'d. Is this correct?
 fn load_or_setup_config(cli: &config::CLI) -> Result<Config, AppError> {
-    println!("Our CLI: {:?}", cli);
-
     match config::load_config() {
         Ok(config) => {
             debug!("Successfully loaded existing config");
