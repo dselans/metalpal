@@ -83,9 +83,7 @@ async fn main() {
 
     display::display(&releases_today);
 
-    // TODO: Sort by popularity, genre, etc.
-
-    // TODO: Slack alert releases
+    // TODO: Send slack alerts
 }
 
 fn setup() {

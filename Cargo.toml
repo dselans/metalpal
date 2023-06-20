@@ -22,3 +22,4 @@ clap = { version = "4.3.4", features = ["derive"] }
 prettytable-rs = "^0.10"
 term = "0.7.0"
 voca_rs = "1.15.2"
+slack-rust = "0.0.1-alpha"
