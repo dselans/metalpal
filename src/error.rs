@@ -47,9 +47,20 @@ pub enum AppError {
         #[from]
         source: rspotify::ClientError,
     },
+
+    #[error("Slack Error: {0}")]
+    SlackError(String),
 }
 
-// Keeping this around as a reminder for how to do this manually
+// slack_rust does not implement the std::error::Error trait, so we have to do this manually
+impl From<slack_rust::error::Error> for AppError {
+    fn from(err: slack_rust::error::Error) -> Self {
+        Self::SlackError(err.to_string())
+    }
+}
+
+// If we needed our own to_string() (without implementing some trait), this is
+// how we would do it:
 //
 // use std::fmt;
 //

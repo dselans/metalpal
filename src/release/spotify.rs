@@ -1,5 +1,5 @@
 use crate::AppError;
-use log::{debug, info};
+// use log::{debug, info};
 use rspotify::model::{Page, SearchResult};
 use rspotify::{model::FullArtist, model::SearchType, prelude::*, ClientCredsSpotify, Credentials};
 

@@ -2,6 +2,7 @@ mod config;
 mod display;
 mod error;
 mod release;
+mod slack;
 
 // Q: What's the diff between 'extern' and 'use'
 extern crate prettytable;
@@ -77,7 +78,16 @@ async fn main() {
 
     display::display(&releases_today);
 
-    // TODO: Send slack alerts
+    // Send Slack notices
+    let slack_client = slack::Slack::new(&config);
+
+    // slack_rust crate doesn't correctly handle Slack responses so we need to
+    // catch this particular error and ignore it
+    if let Err(e) = slack_client.post_releases(&releases_today).await {
+        if !e.to_string().contains("Serde") {
+            fatal_error(e.to_string());
+        }
+    }
 }
 
 fn setup() -> config::CLI {
