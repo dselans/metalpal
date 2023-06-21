@@ -1,0 +1,40 @@
+[package]
+name = "slack-rust"
+version = "0.0.1-alpha"
+authors = ["Gompei <shoueigonpei6028@gmail.com>"]
+edition = "2018"
+description = "Slack API Client"
+documentation = "https://docs.rs/slack-rust/"
+readme = "README.md"
+homepage = "https://crates.io/crates/slack-rust"
+repository = "https://github.com/Gompei/slack-rust"
+license = "Apache-2.0"
+keywords = ["slack-rust", "slack"]
+categories = ["web-programming::http-client", "web-programming::websocket"]
+
+[dependencies]
+async-std = { version = "1.10.0", features = ["attributes"] }
+async-trait = "0.1.51"
+async-tungstenite = "0.19.0"
+futures-util = "0.3.17"
+log = "0.4.14"
+rustls = "0.19.1"
+serde =  { version = "1.0.130", features = ["derive"] }
+serde_json = "1.0"
+serde_with = { version = "1.11.0", features = [ "serde_with_macros" ] }
+surf =  { version = "2.3.1", features = ["curl-client", "encoding"] }
+url = "2.2"
+
+[dependencies.async-tls]
+version = "0.11.0"
+default-features = false
+features = ["client"]
+
+[dev-dependencies]
+env_logger = "0.10.0"
+mockall = "0.11.0"
+
+[dev-dependencies.async-tls]
+version = "0.11.0"
+default-features = false
+features = ["server"]
