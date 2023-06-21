@@ -37,13 +37,17 @@ async fn main() {
         debug!("Config is up to date; skipping fetch...");
     }
 
-    // Get today's releases
-    let mut releases_today = release::get_releases_today(&config.releases);
-
-    // Save again
+    // Save
     if let Err(e) = config::save_config(&config) {
         // Q: My IDE can't tell that to_string exists - why not?
         fatal_error(e.to_string());
+    }
+
+    // Get today's releases
+    let mut releases_today = release::get_releases_today(&config.releases);
+
+    if releases_today.is_empty() {
+        exit("No releases today!".to_string());
     }
 
     // Enrich today's releases with release.spotify metadata

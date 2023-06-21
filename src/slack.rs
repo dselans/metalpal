@@ -46,8 +46,12 @@ impl Slack {
                         color: Some("#36a64f".to_string()),
                         title: Some(format!("{}. {} - {}", iter, release.artist, release.album)),
                         title_link: Some(metallum_metadata.url.clone()),
+                        // Too much data in output - would be nice if there was a way to collapse a section by default.
                         // text: Some(format!("\n\n{}\n\n{}", metallum_metadata.description_short.clone(), metallum_metadata.img_url.clone())),
-                        thumb_url: Some(metallum_metadata.img_url.clone()),
+
+                        // Hmmm... thumb doesn't get generated for some reason? Image url works though
+                        // thumb_url: Some(metallum_metadata.band_name_img_url.clone()),
+                        image_url: Some(metallum_metadata.band_img_url.clone()),
                         fields: Some(vec![
                             AttachmentField {
                                 title: Some("Release Date".to_string()),
@@ -80,7 +84,7 @@ impl Slack {
                                 short: Some(true),
                             },
                         ]),
-                        footer: Some("Metalpal".to_string()),
+                        // footer: Some("Metalpal".to_string()),
                         footer_icon: Some("https://emojis.slackmojis.com/emojis/images/1648645351/56886/metal.png?1648645351".to_string(), ),
                         ts: Some(unix_ts.clone()),
                         ..Default::default()

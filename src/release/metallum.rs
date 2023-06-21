@@ -178,13 +178,29 @@ impl Metallum {
                     0: "Could not find band img".to_string(),
                 })?;
 
-        let mut img_url = "".to_string();
+        let mut band_img_url = "".to_string();
 
         if let Some(url) = fragment.value().attr("href") {
-            img_url = url.to_string();
+            band_img_url = url.to_string();
         }
 
-        debug!("Finished with artist {}", artist_name);
+        // Get band name image
+        let band_name_img_selector = Selector::parse("#band_sidebar > div.band_name_img > a")?;
+        let fragment =
+            document
+                .select(&band_name_img_selector)
+                .next()
+                .ok_or(AppError::GenericError {
+                    0: "Could not find band name img".to_string(),
+                })?;
+
+        let mut band_name_img_url = "".to_string();
+
+        if let Some(url) = fragment.value().attr("href") {
+            band_name_img_url = url.to_string();
+        }
+
+        debug!("Finished metallum lookup for artist {}", artist_name);
 
         Ok(MetallumArtistInfo {
             name: artist_name.to_string(),
@@ -199,7 +215,8 @@ impl Metallum {
             last_label: last_label.to_string(),
             years_active: years_active.to_string(),
             description_long: "".to_string(),
-            img_url,
+            band_img_url,
+            band_name_img_url,
         })
     }
 }

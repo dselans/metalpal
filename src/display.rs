@@ -3,10 +3,6 @@ use log::info;
 use prettytable::{Cell, Row, Table};
 
 pub fn display(valid_releases: &Vec<&Release>, releases_today: &Vec<Release>) {
-    if releases_today.is_empty() {
-        crate::exit("No releases_today today".to_string());
-    }
-
     info!(
         "There are '{}' releases today; out of those, '{}' look interesting!\n",
         releases_today.len(),

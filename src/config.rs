@@ -107,9 +107,10 @@ pub struct MetallumArtistInfo {
     pub formed_in: String,
     pub genre: String,
     pub themes: String,
-    pub img_url: String,
     pub status: String,
     pub last_label: String,
+    pub band_img_url: String,
+    pub band_name_img_url: String,
 }
 
 type Genre = String;
@@ -173,7 +174,7 @@ pub fn load_config() -> Result<Config, AppError> {
 // Interactive setup
 pub fn setup_config(cli: &CLI) -> Result<Config, AppError> {
     if cli.interactive {
-        setup_interactive()?;
+        return setup_interactive();
     }
 
     return setup_cli(cli);
@@ -213,6 +214,8 @@ pub fn setup_interactive() -> Result<Config, AppError> {
         "Blacklisted genre keywords (optional, comma separated; leave blank to skip): ",
         false,
     )?;
+
+    config.full_path = full_path()?;
 
     Ok(config)
 }
