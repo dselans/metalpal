@@ -1,0 +1,3 @@
+[submodule "vendor/slack-rust"]
+	path = vendor/slack-rust
+	url = git@github.com:dselans/slack-rust.git
