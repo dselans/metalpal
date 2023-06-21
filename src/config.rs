@@ -55,6 +55,9 @@ pub struct CLI {
 
     #[arg(long, short, help = "Run in interactive mode")]
     pub interactive: bool,
+
+    #[arg(long, help = "Disable slack notifications")]
+    pub disable_slack: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

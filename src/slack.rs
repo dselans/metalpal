@@ -18,56 +18,79 @@ impl Slack {
         }
     }
 
-    pub async fn post_releases(&self, releases: &Vec<Release>) -> Result<(), AppError> {
+    pub async fn post_releases(&self, releases: &Vec<&Release>) -> Result<(), AppError> {
         let slack_api_client = default_client();
+        let unix_ts = chrono::Local::now().timestamp() as i32;
 
         for channel in &self.channels {
+            let param = PostMessageRequest {
+                channel: channel.to_string(),
+                text: Some(format!(
+                    ":tada: There are *{}* releases today! :tada:",
+                    releases.len()
+                )),
+                ..Default::default()
+            };
+
+            post_message(&slack_api_client, &param, &self.token).await?;
+
+            let mut iter = 1;
+
             for release in releases {
-                // TODO: Fill this out nicely
+                let spotify_metadata = release.spotify.clone().unwrap();
+                let metallum_metadata = release.metallum.clone().unwrap();
+
                 let param = PostMessageRequest {
                     channel: channel.to_string(),
-                    text: Some(format!(
-                        "New release: {} - {}",
-                        release.artist, release.album
-                    )),
                     attachments: Some(vec![Attachment {
                         color: Some("#36a64f".to_string()),
-                        author_name: Some("slack-rust".to_string()),
-                        author_link: Some("https://www.irasutoya.com/".to_string()),
-                        author_icon: Some("https://2.bp.blogspot.com/-3o7K8_p8NNM/WGCRsl8GiCI/AAAAAAABAoc/XKnspjvc0YIoOiSRK9HW6wXhtlnZvHQ9QCLcB/s800/pyoko_hashiru.png".to_string()),
-                        title: Some("title".to_string()),
-                        title_link: Some("https://www.irasutoya.com/".to_string()),
-                        pretext: Some("Optional pre-text that appears above the attachment block".to_string()),
-                        text: Some("Optional `text` that appears within the attachment".to_string()),
-                        thumb_url: Some("https://2.bp.blogspot.com/-3o7K8_p8NNM/WGCRsl8GiCI/AAAAAAABAoc/XKnspjvc0YIoOiSRK9HW6wXhtlnZvHQ9QCLcB/s800/pyoko_hashiru.png".to_string()),
+                        title: Some(format!("{}. {} - {}", iter, release.artist, release.album)),
+                        title_link: Some(metallum_metadata.url.clone()),
+                        // text: Some(format!("\n\n{}\n\n{}", metallum_metadata.description_short.clone(), metallum_metadata.img_url.clone())),
+                        thumb_url: Some(metallum_metadata.img_url.clone()),
                         fields: Some(vec![
                             AttachmentField {
-                                title: Some("A field's title".to_string()),
-                                value: Some("This field's value".to_string()),
-                                short: Some(false),
+                                title: Some("Release Date".to_string()),
+                                value: Some(release.date.to_string()),
+                                short: Some(true),
+                            },
+                            AttachmentField {
+                                title: Some("Genres".to_string()),
+                                value: Some(metallum_metadata.genre.clone()),
+                                short: Some(true),
+                            },
+                            AttachmentField {
+                                title: Some("Country".to_string()),
+                                value: Some(metallum_metadata.country_origin.clone()),
+                                short: Some(true),
+                            },
+                            AttachmentField {
+                                title: Some("Spotify Popularity".to_string()),
+                                value: Some(spotify_metadata.popularity.to_string()),
+                                short: Some(true),
+                            },
+                            AttachmentField {
+                                title: Some("Spotify Followers".to_string()),
+                                value: Some(spotify_metadata.followers.to_string()),
+                                short: Some(true),
+                            },
+                            AttachmentField {
+                                title: Some("Spotify Artist ID".to_string()),
+                                value: Some(spotify_metadata.id.clone()),
+                                short: Some(true),
                             },
                         ]),
-                        mrkdwn_in: Some(vec!["text".to_string()]),
-                        footer: Some("footer".to_string()),
-                        footer_icon: Some("https://1.bp.blogspot.com/-46AF2TCkb-o/VW6ORNeQ3UI/AAAAAAAAt_4/TA4RrGVcw_U/s800/pyoko05_cycling.png".to_string(), ),
-                        ts: Some(123456789),
+                        footer: Some("Metalpal".to_string()),
+                        footer_icon: Some("https://emojis.slackmojis.com/emojis/images/1648645351/56886/metal.png?1648645351".to_string(), ),
+                        ts: Some(unix_ts.clone()),
                         ..Default::default()
                     }]),
                     ..Default::default()
                 };
 
-                if let Err(e) = post_message(&slack_api_client, &param, &self.token).await {
-                    // post_message() is broken and generates a serde error; ignore it
-                    if !e.to_string().contains("Serde") {
-                        return Err(AppError::SlackError(format!(
-                            "Error posting release to slack: {}",
-                            e.to_string()
-                        )));
-                    }
-                }
+                post_message(&slack_api_client, &param, &self.token).await?;
+                iter += 1;
             }
-
-            break;
         }
 
         Ok(())

@@ -76,15 +76,16 @@ async fn main() {
         fatal_error(e.to_string());
     }
 
-    display::display(&releases_today);
+    let valid_releases = release::filter_valid_releases(&releases_today);
 
-    // Send Slack notices
-    let slack_client = slack::Slack::new(&config);
+    display::display(&valid_releases, &releases_today);
 
-    // slack_rust crate doesn't correctly handle Slack responses so we need to
-    // catch this particular error and ignore it
-    if let Err(e) = slack_client.post_releases(&releases_today).await {
-        if !e.to_string().contains("Serde") {
+    // Maybe send Slack notices
+    if !cli.disable_slack && !config.slack_channels.is_empty() && !config.slack_bot_token.is_empty()
+    {
+        let slack_client = slack::Slack::new(&config);
+
+        if let Err(e) = slack_client.post_releases(&valid_releases).await {
             fatal_error(e.to_string());
         }
     }

@@ -2,15 +2,10 @@ use crate::config::Release;
 use log::info;
 use prettytable::{Cell, Row, Table};
 
-pub fn display(releases_today: &Vec<Release>) {
+pub fn display(valid_releases: &Vec<&Release>, releases_today: &Vec<Release>) {
     if releases_today.is_empty() {
         crate::exit("No releases_today today".to_string());
     }
-
-    let valid_releases = releases_today
-        .into_iter()
-        .filter(|r| !r.skip)
-        .collect::<Vec<&Release>>();
 
     info!(
         "There are '{}' releases today; out of those, '{}' look interesting!\n",
@@ -18,20 +13,10 @@ pub fn display(releases_today: &Vec<Release>) {
         valid_releases.len(),
     );
 
-    let mut sorted_releases = valid_releases.clone();
-
-    sorted_releases.sort_by(|a, b| {
-        b.spotify
-            .clone()
-            .unwrap()
-            .followers
-            .cmp(&a.spotify.clone().unwrap().followers)
-    });
-
     let mut iter = 1;
 
     // Display release in tables, sorted by follower count
-    for release in sorted_releases {
+    for release in valid_releases {
         let mut table = Table::new();
 
         // Header

@@ -263,8 +263,6 @@ pub fn set_skip_spotify(config: &Config, releases_today: &mut Vec<Release>) {
                 release.spotify.is_none()
             );
 
-            println!("Spotify metadata: {:?}", release.spotify);
-
             release.skip = true;
             release
                 .skip_reasons
@@ -419,4 +417,25 @@ pub fn merge_releases(all_releases: &mut Vec<Release>, todays_releases: &Vec<Rel
             }
         }
     }
+}
+
+pub fn filter_valid_releases(releases: &Vec<Release>) -> Vec<&Release> {
+    // Ignore skipped releases
+    let valid_releases = releases
+        .into_iter()
+        .filter(|r| !r.skip)
+        .collect::<Vec<&Release>>();
+
+    let mut sorted_releases = valid_releases.clone();
+
+    // Sort desc by follower count
+    sorted_releases.sort_by(|a, b| {
+        b.spotify
+            .clone()
+            .unwrap()
+            .followers
+            .cmp(&a.spotify.clone().unwrap().followers)
+    });
+
+    sorted_releases
 }
